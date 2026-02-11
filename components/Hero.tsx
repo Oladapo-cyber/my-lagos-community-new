@@ -4,7 +4,7 @@ import { Search, ChevronDown, MapPin, Sparkles } from 'lucide-react';
 
 export const Hero: React.FC = () => {
   return (
-    <section className="relative min-h-screen lg:h-[90vh] w-full flex items-center justify-center pt-20 pb-8 overflow-hidden">
+    <section className="relative min-h-screen lg:h-[90vh] w-full flex items-center justify-center xs:pt-1 md:pt-20 pb-10 md:pb-28 overflow-hidden">
       {/* Background Image with Deep Blue Overlay */}
       <div className="absolute inset-0 z-0">
         <img 
@@ -18,7 +18,7 @@ export const Hero: React.FC = () => {
 
       <div className="relative z-10 text-center px-4 max-w-5xl w-full">
         {/* Main Header - Adjusted for mobile visibility */}
-        <h1 className="text-[32px] sm:text-5xl md:text-[84px] font-black text-white mb-3 sm:mb-6 tracking-tighter leading-tight drop-shadow-2xl">
+        <h1 className="text-[32px] sm:text-3xl md:text-[44px] mt-[10px] md:mt-[130px] p-[40px] font-black text-white mb-3 sm:mb-6 tracking-tighter leading-tight drop-shadow-2xl">
           Welcome to <span className="text-[#f59e0b]">Lagos!</span>
         </h1>
         
@@ -28,7 +28,7 @@ export const Hero: React.FC = () => {
         </p>
 
         {/* Search Bar Card - Optimized for Mobile spacing */}
-        <div className="bg-white rounded-xl shadow-2xl max-w-4xl mx-auto w-full border border-white/20 p-3 md:p-2 mb-8">
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl mx-auto w-full border border-white/20 p-3 md:p-2 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center">
             {/* Category */}
             <div className="flex-1 w-full border-b md:border-b-0 md:border-r border-gray-100 p-2.5 sm:p-4 flex items-center justify-between cursor-pointer group hover:bg-gray-50/50 transition-colors">
@@ -66,19 +66,15 @@ export const Hero: React.FC = () => {
 
         {/* Sub-label Script - Reduced mobile size for space */}
         <div className="relative inline-block mt-4 sm:mt-12">
-          <p className="font-southern text-xl sm:text-4xl md:text-6xl text-white leading-tight drop-shadow-lg px-8 sm:px-12">
+          <p className="font-southern text-xl sm:text-2xl md:text-3xl text-white leading-tight drop-shadow-lg px-8 sm:px-12">
             Or select a category below to find the best places
           </p>
           
-          {/* SINGLE Decorative Sparkle Badge - removed the redundant second one */}
-          <div className="absolute -right-2 sm:-right-4 -bottom-1 sm:bottom-4 w-10 h-10 sm:w-14 sm:h-14 bg-[#f59e0b] rounded-full flex items-center justify-center shadow-2xl border-2 sm:border-4 border-white/20 group cursor-pointer hover:scale-110 transition-transform">
-            <Sparkles className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
-          </div>
         </div>
 
         {/* Scroll Indicator - Hidden on very small mobile to save space if needed, otherwise kept subtle */}
         <div className="mt-10 sm:mt-16 flex justify-center">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/20 flex items-center justify-center animate-bounce hover:border-white transition-colors cursor-pointer group">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full md:mb-[20px] border border-white/20 flex items-center justify-center animate-bounce hover:border-white transition-colors cursor-pointer group">
             <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-white/50 group-hover:text-white" />
           </div>
         </div>

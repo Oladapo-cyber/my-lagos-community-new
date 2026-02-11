@@ -13,63 +13,66 @@ export const Footer: React.FC = () => {
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
-    <footer className="bg-[#111] text-white py-20 px-6 relative">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16">
+    <footer className="bg-gradient-to-br from-[#0a0a0a] via-[#111] to-[#0f0f0f] text-white py-16 px-4 sm:px-6 relative overflow-hidden">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
+      
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 sm:gap-16 relative z-10">
         {/* Brand Column */}
-        <div className="space-y-8">
+        <div className="space-y-6">
           <div className="flex flex-col">
             <BrandLogo />
           </div>
-          <p className="text-white/40 text-sm leading-relaxed max-w-xs font-medium">
+          <p className="text-white/50 text-sm leading-relaxed max-w-xs font-medium">
             We're proud to support businesses in the communities in which we work. 
             Shop local and explore all that Lagos has to offer.
           </p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center hover:bg-blue-600 transition-all">
-              <Facebook className="w-4 h-4" />
+          <div className="flex items-center gap-3">
+            <a href="#" className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-blue-600 hover:border-blue-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/20 group">
+              <Facebook className="w-4.5 h-4.5 text-white/60 group-hover:text-white transition-colors" />
             </a>
-            <a href="#" className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center hover:bg-pink-600 transition-all">
-              <Instagram className="w-4 h-4" />
+            <a href="#" className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-gradient-to-br hover:from-purple-600 hover:to-pink-600 hover:border-pink-600 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-pink-500/20 group">
+              <Instagram className="w-4.5 h-4.5 text-white/60 group-hover:text-white transition-colors" />
             </a>
-            <a href="#" className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center hover:bg-sky-500 transition-all">
-              <Twitter className="w-4 h-4" />
+            <a href="#" className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-sky-500 hover:border-sky-500 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-sky-500/20 group">
+              <Twitter className="w-4.5 h-4.5 text-white/60 group-hover:text-white transition-colors" />
             </a>
-            <a href="#" className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center hover:bg-blue-800 transition-all">
-              <Linkedin className="w-4 h-4" />
+            <a href="#" className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-blue-700 hover:border-blue-700 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-700/20 group">
+              <Linkedin className="w-4.5 h-4.5 text-white/60 group-hover:text-white transition-colors" />
             </a>
           </div>
         </div>
 
         {/* Explore */}
         <div>
-          <h4 className="text-base font-black uppercase tracking-widest text-white/90 mb-10">Explore</h4>
-          <ul className="space-y-4 text-sm font-bold text-white/40">
-            <li><a href="#" className="hover:text-blue-500 transition-colors">All Inclusive</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Arts & Crafts</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Nightlife</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Restaurants</a></li>
+          <h4 className="text-base font-black uppercase tracking-[0.2em] text-white mb-7">Explore</h4>
+          <ul className="space-y-4 text-sm font-semibold text-white/50">
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">All Inclusive</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Arts & Crafts</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Nightlife</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Restaurants</a></li>
           </ul>
         </div>
 
-        {/* Users */}
+        {/* Community */}
         <div>
-          <h4 className="text-base font-black uppercase tracking-widest text-white/90 mb-10">Community</h4>
-          <ul className="space-y-4 text-sm font-bold text-white/40">
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Join MLC</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Sign In</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">How It Works</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Add Listing</a></li>
+          <h4 className="text-base font-black uppercase tracking-[0.2em] text-white mb-7">Community</h4>
+          <ul className="space-y-4 text-sm font-semibold text-white/50">
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Join MLC</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Sign In</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">How It Works</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Add Listing</a></li>
           </ul>
         </div>
 
         {/* Company */}
         <div>
-          <h4 className="text-base font-black uppercase tracking-widest text-white/90 mb-10">Company</h4>
-          <ul className="space-y-4 text-sm font-bold text-white/40">
-            <li><a href="#" className="hover:text-blue-500 transition-colors">About MLC</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Contact Us</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Locations</a></li>
-            <li><a href="#" className="hover:text-blue-500 transition-colors">Privacy Policy</a></li>
+          <h4 className="text-base font-black uppercase tracking-[0.2em] text-white mb-7">Company</h4>
+          <ul className="space-y-4 text-sm font-semibold text-white/50">
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">About MLC</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Contact Us</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Locations</a></li>
+            <li><a href="#" className="hover:text-blue-400 transition-colors inline-block hover:translate-x-1 duration-200">Privacy Policy</a></li>
           </ul>
         </div>
       </div>
@@ -77,19 +80,19 @@ export const Footer: React.FC = () => {
       {/* Floating Return to Top */}
       <button 
         onClick={scrollToTop}
-        className="absolute bottom-10 right-10 bg-white/5 hover:bg-white/10 w-12 h-12 rounded-full flex items-center justify-center transition-all group"
+        className="absolute bottom-12 right-8 sm:right-12 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group shadow-xl shadow-blue-500/20 hover:scale-110 hover:shadow-2xl hover:shadow-blue-500/30"
       >
-        <ChevronUp className="w-5 h-5 text-white/40 group-hover:text-white group-hover:-translate-y-1 transition-all" />
+        <ChevronUp className="w-6 h-6 text-white group-hover:-translate-y-1 transition-transform duration-300" />
       </button>
 
-      <div className="max-w-7xl mx-auto mt-24 pt-10 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+      <div className="max-w-7xl mx-auto mt-16 pt-10 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+        <div className="text-[11px] font-bold text-white/30 uppercase tracking-[0.15em]">
           © {new Date().getFullYear()} My Lagos Community. All rights reserved.
         </div>
-        <div className="flex items-center gap-8 text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
-          <a href="#" className="hover:text-white transition-all">Privacy</a>
-          <a href="#" className="hover:text-white transition-all">Terms</a>
-          <a href="#" className="hover:text-white transition-all">Sitemap</a>
+        <div className="flex items-center gap-8 text-[11px] font-bold text-white/30 uppercase tracking-[0.15em]">
+          <a href="#" className="hover:text-white transition-all duration-200">Privacy</a>
+          <a href="#" className="hover:text-white transition-all duration-200">Terms</a>
+          <a href="#" className="hover:text-white transition-all duration-200">Sitemap</a>
         </div>
       </div>
     </footer>

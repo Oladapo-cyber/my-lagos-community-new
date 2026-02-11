@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ShoppingBag, Heart, User } from 'lucide-react';
+import { ShoppingBag, Heart, User, LogIn, UserPlus } from 'lucide-react';
 
 interface NavbarProps {
   onProfileClick: () => void;
@@ -96,37 +96,41 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               
               {showAuthMenu && (
-                <div className="absolute top-full right-0 mt-3 w-56 bg-white rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 py-2 z-50 overflow-hidden">
+                <div className="absolute top-full right-0 mt-3 w-48 bg-white rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-gray-100 py-1.5 z-50 overflow-hidden">
                   {isLoggedIn ? (
                     <>
                       <button 
                         onClick={() => { setShowAuthMenu(false); onProfileClick(); }}
-                        className="w-full h-12 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        className="w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-gray-50 transition-colors"
                       >
-                         <span className="text-xs font-black text-gray-700 uppercase tracking-widest">DASHBOARD</span>
+                         <User className="w-4 h-4 text-gray-500" />
+                         <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wide">DASHBOARD</span>
                       </button>
-                      <div className="h-px bg-gray-50 mx-2"></div>
+                      <div className="h-px bg-gray-100 my-1"></div>
                       <button 
                         onClick={() => { setShowAuthMenu(false); onLogoutClick(); }}
-                        className="w-full h-12 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        className="w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-gray-50 transition-colors"
                       >
-                         <span className="text-xs font-black text-gray-700 uppercase tracking-widest">LOG OUT</span>
+                         <LogIn className="w-4 h-4 text-gray-500" />
+                         <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wide">LOG OUT</span>
                       </button>
                     </>
                   ) : (
                     <>
                       <button 
                         onClick={() => { setShowAuthMenu(false); onLoginClick(); }}
-                        className="w-full h-12 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        className="w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-gray-50 transition-colors"
                       >
-                         <span className="text-xs font-black text-gray-700 uppercase tracking-widest">LOG IN</span>
+                         <LogIn className="w-4 h-4 text-gray-500" />
+                         <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wide">LOG IN</span>
                       </button>
-                      <div className="h-px bg-gray-50 mx-2"></div>
+                      <div className="h-px bg-gray-100 my-1"></div>
                       <button 
                         onClick={() => { setShowAuthMenu(false); onSignupClick(); }}
-                        className="w-full h-12 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        className="w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-gray-50 transition-colors"
                       >
-                         <span className="text-xs font-black text-gray-700 uppercase tracking-widest">SIGN UP</span>
+                         <UserPlus className="w-4 h-4 text-gray-500" />
+                         <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wide">SIGN UP</span>
                       </button>
                     </>
                   )}
