@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, Lock, Eye, EyeOff, Phone, User, ArrowRight, MapPin } from 'lucide-react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { callXanoEndpoint, setAuthToken } from '../utils/apiClient';
+import { useAuth } from '../context/AuthContext';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -12,46 +12,28 @@ interface AuthModalProps {
 }
 
 const LoginForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
+  const { login, isLoading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
 
     try {
-      // Determine if identifier is email or username
-      const isEmail = identifier.includes('@');
-      const payload: any = {
-        password: password
-      };
-
-      if (isEmail) {
-        payload.email = identifier;
-      } else {
-        payload.username = identifier;
+      // For now, assume email login (you can enhance this to support username)
+      if (!identifier.includes('@')) {
+        setError('Please enter a valid email address');
+        return;
       }
 
-      const response = await callXanoEndpoint('auth/login', 'POST', payload);
-      
-      console.log('Login response:', response);
-      const token = response.authToken || response.auth_token || response.token;
-      
-      if (token) {
-        setAuthToken(token);
-        onAuthSuccess();
-      } else {
-        setError('Login failed. Please check your credentials.');
-      }
+      await login(identifier, password);
+      onAuthSuccess();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || 'An error occurred during login. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setError(err.message || authError || 'An error occurred during login. Please try again.');
     }
   };
 
@@ -124,6 +106,7 @@ const LoginForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
 };
 
 const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
+  const { signup, isLoading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -159,37 +142,23 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
       confirmPassword: ''
     },
     validationSchema,
-    onSubmit: async (values, { setSubmitting, setErrors }) => {
+    onSubmit: async (values) => {
       try {
-        const payload = {
-          email: values.email,
-          username: values.username,
-          password: values.password,
+        await signup({
           firstName: values.firstName,
           lastName: values.lastName,
+          username: values.username,
+          email: values.email,
+          password: values.password,
+          phone: values.phone,
           address: values.address,
-          phoneNumber: values.phone // Map to backend requirement
-        };
-
-        const response = await callXanoEndpoint('auth/signup', 'POST', payload);
-        
-         console.log('Signup response:', response);
-         const token = response.authToken || response.auth_token || response.token;
-
-         if (token) {
-           setAuthToken(token);
-           onAuthSuccess();
-         } else {
-            // Handle cases where no token is returned but also no error (rare)
-            setErrors({ email: 'Signup failed. Please try again.' });
-         }
+        });
+        onAuthSuccess();
       } catch (err: any) {
         console.error('Signup error:', err);
-        setErrors({ 
-           email: err.response?.data?.message || 'An error occurred during signup.' 
+        formik.setErrors({ 
+           email: authError || err.message || 'An error occurred during signup.' 
         });
-      } finally {
-        setSubmitting(false);
       }
     },
   });

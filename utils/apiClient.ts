@@ -139,9 +139,12 @@ export async function callXanoEndpoint(
   // Use direct axios call for Xano to bypass local server proxy
   const url = `${XANO_BASE_URL}/${endpoint}`;
   
-  const headers: any = {
-    'Content-Type': 'application/json'
-  };
+  const headers: any = {};
+
+  // Only set JSON content type for non-FormData payloads
+  if (!(data instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   // Add auth token if available
   const token = getAuthToken();

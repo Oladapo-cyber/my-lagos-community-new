@@ -20,16 +20,17 @@ import { AddBusinessPage } from './components/AddBusinessPage';
 import { ShopPage } from './components/ShopPage';
 import { ProductDetail } from './components/ProductDetail';
 import { AuthModal } from './components/AuthModal';
+import { useAuth } from './context/AuthContext';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'home' | 'dashboard' | 'listings' | 'listing-detail' | 'contact' | 'events' | 'add-business' | 'shop' | 'product-detail'>('home');
   const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  
-  // Auth State
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
+  
+  // Get auth state from context
+  const { isLoggedIn, logout } = useAuth();
 
   const handleListingClick = (id: number) => {
     setSelectedListingId(id);
@@ -54,14 +55,13 @@ const App: React.FC = () => {
   };
 
   const handleAuthSuccess = () => {
-    setIsLoggedIn(true);
     setIsAuthModalOpen(false);
     // Optionally navigate to dashboard or stay on current page
     // navigateTo('dashboard'); 
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
+    logout();
     navigateTo('home');
   };
 

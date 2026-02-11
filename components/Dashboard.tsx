@@ -21,6 +21,7 @@ import {
   Image as ImageIcon,
   LogOut
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface DashboardProps {
   onReturnHome: () => void;
@@ -29,6 +30,7 @@ interface DashboardProps {
 type SubView = 'dashboard' | 'listings' | 'events' | 'orders' | 'profile';
 
 export const Dashboard: React.FC<DashboardProps> = ({ onReturnHome }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<SubView>('dashboard');
 
   const SIDEBAR_ITEMS = [
@@ -48,6 +50,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onReturnHome }) => {
       case 'profile': return <ProfileView />;
       default: return <StatsOverview />;
     }
+  };
+
+  // Generate initials from user name
+  const getInitials = () => {
+    if (!user) return 'U';
+    const first = user.firstName?.charAt(0) || '';
+    const last = user.lastName?.charAt(0) || '';
+    return `${first}${last}`.toUpperCase() || 'U';
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (!user) return 'User';
+    const first = user.firstName?.charAt(0).toUpperCase() + (user.firstName?.slice(1) || '');
+    const last = user.lastName?.charAt(0).toUpperCase() + (user.lastName?.slice(1) || '');
+    return `${first} ${last}`.trim();
   };
 
   return (
@@ -92,10 +110,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onReturnHome }) => {
               Home &gt;&gt; {activeTab === 'dashboard' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
             </span>
             <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm">
-              <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-gray-50">
-                <User className="w-4 h-4 text-gray-500" />
+              <div className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-gradient-to-br from-blue-400 to-blue-600 text-white font-bold text-xs">
+                {getInitials()}
               </div>
-              <span className="text-sm font-bold text-gray-800">Precious J</span>
+              <span className="text-sm font-bold text-gray-800">{getDisplayName()}</span>
             </div>
           </div>
         </div>
@@ -282,77 +300,214 @@ const OrdersView = () => (
   </div>
 );
 
-const ProfileView = () => (
-  <div className="space-y-12">
-    {/* Personal Info */}
-    <div>
-      <h2 className="text-xl font-extrabold text-gray-900 mb-8">Personal Information</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
-          <div className="border-2 border-dashed border-blue-600 rounded-xl aspect-[4/3] flex flex-col items-center justify-center p-6 text-center group cursor-pointer hover:bg-blue-50/50 transition-colors">
-            <div className="w-12 h-12 rounded-lg bg-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
-              <ImageIcon className="w-6 h-6 text-white" />
+const ProfileView = () => {
+  const { user, setUser } = useAuth();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileSelect = (file: File) => {
+    setUploadError(null);
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select an image file (JPG, PNG, GIF, etc.)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image must be less than 5MB');
+      return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setAvatarPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to Xano
+    uploadAvatar(file);
+  };
+
+  const uploadAvatar = async (file: File) => {
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const { callXanoEndpoint } = await import('../utils/apiClient');
+
+      // Upload image as form data
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadResponse = await callXanoEndpoint('upload/attachment', 'POST', formData);
+      console.log('[Profile] Upload response:', uploadResponse);
+
+      // Update profile with new avatar URL
+      const avatarUrl = uploadResponse?.path || uploadResponse?.url || uploadResponse;
+      
+      if (avatarUrl && user) {
+        // Update user profile on backend
+        await callXanoEndpoint('user', 'POST', {
+          ...user,
+          avatar: avatarUrl,
+        });
+
+        // Update local user state
+        setUser({ ...user, avatar: typeof avatarUrl === 'string' ? avatarUrl : '' });
+      }
+    } catch (err: any) {
+      console.error('[Profile] Upload error:', err);
+      setUploadError(err.response?.data?.message || 'Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
+  return (
+    <div className="space-y-12">
+      {/* Personal Info */}
+      <div>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-8">Personal Information</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleInputChange}
+            />
+            <div
+              onClick={handleClick}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-xl aspect-[4/3] flex flex-col items-center justify-center p-6 text-center group cursor-pointer transition-colors relative overflow-hidden ${
+                isDragging
+                  ? 'border-blue-600 bg-blue-50'
+                  : 'border-blue-600 hover:bg-blue-50/50'
+              } ${isUploading ? 'opacity-60 pointer-events-none' : ''}`}
+            >
+              {avatarPreview ? (
+                <img
+                  src={avatarPreview}
+                  alt="Profile"
+                  className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20 font-bold text-lg">
+                  {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+                </div>
+              )}
+              {!avatarPreview && (
+                <p className="text-xs font-medium text-gray-500">
+                  <span className="text-blue-600 font-bold underline">Click</span> to upload profile picture or Drag & drop here
+                </p>
+              )}
+              {isUploading && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-xl">
+                  <span className="text-sm font-bold text-blue-600 animate-pulse">Uploading...</span>
+                </div>
+              )}
+              {avatarPreview && !isUploading && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-sm font-bold text-white">Change Photo</span>
+                </div>
+              )}
             </div>
-            <p className="text-xs font-medium text-gray-500">
-              <span className="text-blue-600 font-bold underline cursor-pointer">Click</span> to upload profile picture or Drag & drop here
-            </p>
+            {uploadError && (
+              <p className="text-red-500 text-xs font-bold mt-2">{uploadError}</p>
+            )}
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <InputGroup label="First Name" value={user?.firstName} />
+            <InputGroup label="Last Name" value={user?.lastName} />
           </div>
         </div>
-        <div className="lg:col-span-2 space-y-6">
-          <InputGroup label="First Name" />
-          <InputGroup label="Last Name" />
+      </div>
+
+      {/* Contact Details */}
+      <div>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-8 border-t border-gray-100 pt-12">Contact Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <InputGroup label="Email Address" value={user?.email} />
+          <InputGroup label="Phone Number" value={user?.phone} />
         </div>
+        <InputGroup label="Address" value={user?.address} fullWidth />
       </div>
-    </div>
 
-    {/* Contact Details */}
-    <div>
-      <h2 className="text-xl font-extrabold text-gray-900 mb-8 border-t border-gray-100 pt-12">Contact Details</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <InputGroup label="Email Address" />
-        <InputGroup label="Phone Number" />
+      {/* Billing Address */}
+      <div>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-8 border-t border-gray-100 pt-12">Billing Address</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <InputGroup label="Country" placeholder="E.g Nigeria" />
+          <InputGroup label="State" placeholder="E.g Lagos" />
+          <InputGroup label="City" placeholder="E.g Ikeja" />
+          <InputGroup label="Postal Code" placeholder="E.g 100001" />
+        </div>
+        <InputGroup label="Address" fullWidth />
       </div>
-      <InputGroup label="Address" fullWidth />
-    </div>
 
-    {/* Billing Address */}
-    <div>
-      <h2 className="text-xl font-extrabold text-gray-900 mb-8 border-t border-gray-100 pt-12">Billing Address</h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <InputGroup label="Country" placeholder="E.g Nigeria" />
-        <InputGroup label="State" placeholder="E.g Lagos" />
-        <InputGroup label="City" placeholder="E.g Ikeja" />
-        <InputGroup label="Postal Code" placeholder="E.g 100001" />
+      {/* Shipping Address */}
+      <div>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-8 border-t border-gray-100 pt-12">Shipping Address</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <InputGroup label="Country" placeholder="E.g Nigeria" />
+          <InputGroup label="State" placeholder="E.g Lagos" />
+          <InputGroup label="City" placeholder="E.g Ikeja" />
+          <InputGroup label="Postal Code" placeholder="E.g 100001" />
+        </div>
+        <InputGroup label="Address" fullWidth />
       </div>
-      <InputGroup label="Address" fullWidth />
-    </div>
 
-    {/* Shipping Address */}
-    <div>
-      <h2 className="text-xl font-extrabold text-gray-900 mb-8 border-t border-gray-100 pt-12">Shipping Address</h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <InputGroup label="Country" placeholder="E.g Nigeria" />
-        <InputGroup label="State" placeholder="E.g Lagos" />
-        <InputGroup label="City" placeholder="E.g Ikeja" />
-        <InputGroup label="Postal Code" placeholder="E.g 100001" />
-      </div>
-      <InputGroup label="Address" fullWidth />
-    </div>
-
-    <div className="pt-8 flex justify-start">
+      <div className="pt-8 flex justify-start">
       <button className="px-10 py-4 bg-[#2563eb] text-white rounded-lg text-sm font-bold uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all">
         SAVE CHANGES
       </button>
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
-const InputGroup = ({ label, placeholder, fullWidth }: { label: string; placeholder?: string; fullWidth?: boolean }) => (
+const InputGroup = ({ label, placeholder, fullWidth, value }: { label: string; placeholder?: string; fullWidth?: boolean; value?: string }) => (
   <div className={`bg-white border border-gray-100 rounded-xl p-6 shadow-sm ${fullWidth ? 'w-full' : ''}`}>
     <label className="block text-sm font-bold text-gray-900 mb-4">{label}</label>
     <input 
       type="text" 
       placeholder={placeholder}
+      value={value || ''}
+      readOnly={!!value}
       className="w-full border-b border-gray-200 py-2 text-sm font-medium outline-none focus:border-blue-600 transition-colors placeholder:text-gray-300"
     />
   </div>
