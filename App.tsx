@@ -56,8 +56,7 @@ const App: React.FC = () => {
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
-    // Optionally navigate to dashboard or stay on current page
-    // navigateTo('dashboard'); 
+    navigateTo('dashboard'); 
   };
 
   const handleLogout = () => {
@@ -108,7 +107,7 @@ const App: React.FC = () => {
           <EventsPage />
         )}
         {currentView === 'add-business' && (
-          <AddBusinessPage />
+          <AddBusinessPage onBackToDashboard={() => navigateTo('dashboard')} />
         )}
         {currentView === 'shop' && (
           <ShopPage onProductClick={handleProductClick} />

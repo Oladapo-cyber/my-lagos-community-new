@@ -162,8 +162,40 @@ export async function callXanoEndpoint(
     });
     return response.data;
   } catch (error: any) {
-    console.error(`Xano API Error (${endpoint}):`, error.response?.data || error.message);
-    throw error;
+    const errorMessage = parseApiResponseError(error);
+    console.error(`Xano API Error (${endpoint}):`, errorMessage);
+    throw new Error(errorMessage);
+  }
+}
+
+/**
+ * Robustly parse API errors into human-readable messages
+ */
+export function parseApiResponseError(error: any): string {
+  if (error.response) {
+    // The request was made and the server responded with a status code
+    const data = error.response.data;
+    
+    // Xano specific error formats
+    if (data.message) return data.message;
+    if (data.error) return typeof data.error === 'string' ? data.error : data.error.message;
+    
+    // Fallback based on status codes
+    switch (error.response.status) {
+      case 400: return 'Invalid information provided. Please check your inputs.';
+      case 401: return 'Authentication failed. Please check your credentials.';
+      case 403: return 'You do not have permission to perform this action.';
+      case 404: return 'The requested resource was not found.';
+      case 429: return 'Too many requests. Please try again later.';
+      case 500: return 'Server error. Our team has been notified. Please try again soon.';
+      default: return `Request failed with status ${error.response.status}`;
+    }
+  } else if (error.request) {
+    // The request was made but no response was received
+    return 'Network error. Please check your internet connection.';
+  } else {
+    // Something happened in setting up the request that triggered an Error
+    return error.message || 'An unexpected error occurred.';
   }
 }
 

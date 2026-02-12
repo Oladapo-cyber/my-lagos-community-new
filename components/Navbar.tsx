@@ -67,15 +67,29 @@ export const Navbar: React.FC<NavbarProps> = ({
           <a href="#" onClick={(e) => { e.preventDefault(); onContactClick(); }} className="hover:text-blue-600 transition-colors">Contact</a>
         </div>
 
+        {/* Center: List Your Business (Mobile & Desktop) */}
+        {isLoggedIn && (
+          <div className="flex-1 flex justify-center px-4 lg:hidden">
+            <button 
+              onClick={onAddBusinessClick}
+              className="border border-gray-900 px-2 py-1.5 sm:px-4 sm:py-2 text-[9px] sm:text-xs font-bold uppercase tracking-wider hover:bg-gray-900 hover:text-white transition-all whitespace-nowrap"
+            >
+              LIST YOUR BUSINESS
+            </button>
+          </div>
+        )}
+
         {/* Actions */}
-        <div className="flex items-center space-x-6">
-          <button 
-            onClick={onAddBusinessClick}
-            className="hidden sm:block border border-gray-900 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-gray-900 hover:text-white transition-all"
-          >
-            LIST YOUR BUSINESS
-          </button>
+        <div className="flex items-center space-x-3 sm:space-x-6">
           
+          {isLoggedIn && (
+            <button 
+              onClick={onAddBusinessClick}
+              className="hidden lg:block border border-gray-900 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-gray-900 hover:text-white transition-all whitespace-nowrap"
+            >
+              LIST YOUR BUSINESS
+            </button>
+          )}
           <div className="flex items-center space-x-4">
             <div className="relative cursor-pointer">
               <Heart className="w-5 h-5 text-gray-700" />
@@ -106,6 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                          <User className="w-4 h-4 text-gray-500" />
                          <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wide">DASHBOARD</span>
                       </button>
+                      
                       <div className="h-px bg-gray-100 my-1"></div>
                       <button 
                         onClick={() => { setShowAuthMenu(false); onLogoutClick(); }}

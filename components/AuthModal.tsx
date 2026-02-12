@@ -3,6 +3,7 @@ import { X, Mail, Lock, Eye, EyeOff, Phone, User, ArrowRight, MapPin } from 'luc
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../context/AuthContext';
+import { IMAGES } from '../assets/images';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -23,9 +24,8 @@ const LoginForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
     setError(null);
 
     try {
-      // For now, assume email login (you can enhance this to support username)
-      if (!identifier.includes('@')) {
-        setError('Please enter a valid email address');
+      if (!identifier.trim()) {
+        setError('Please enter your username or email address');
         return;
       }
 
@@ -156,9 +156,6 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
         onAuthSuccess();
       } catch (err: any) {
         console.error('Signup error:', err);
-        formik.setErrors({ 
-           email: authError || err.message || 'An error occurred during signup.' 
-        });
       }
     },
   });
@@ -181,6 +178,11 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
 
   return (
     <form className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3" onSubmit={formik.handleSubmit}>
+        {authError && (
+          <div className="md:col-span-2 bg-red-50 text-red-600 p-3 rounded-lg text-xs font-bold mb-2">
+            {authError}
+          </div>
+        )}
         {/* First & Last Name */}
         <div className="space-y-1 text-left">
            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">First Name</label>
@@ -392,7 +394,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialVi
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
        <div className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300" onClick={onClose}></div>
-       <div className={`bg-white rounded-3xl w-full ${view === 'signup' ? 'max-w-[800px]' : 'max-w-[480px]'} max-h-[90vh] overflow-y-auto no-scrollbar relative z-10 shadow-2xl transition-all duration-300 transform scale-100 pt-8`}>
+       <div 
+         className={`bg-white rounded-3xl w-full ${view === 'signup' ? 'max-w-[800px]' : 'max-w-[480px]'} max-h-[90vh] overflow-y-auto no-scrollbar relative z-10 shadow-2xl transition-all duration-300 transform scale-100 pt-8`}
+         style={{
+           backgroundColor: '#ffffff',
+           backgroundImage: `url('${IMAGES.TESTIMONIAL_BG}')`,
+           backgroundSize: '800px',
+           backgroundPosition: 'center',
+           backgroundRepeat: 'repeat'
+         }}
+       >
           
           {/* Header Bar */}
           <div className="absolute top-4 right-4 z-20">

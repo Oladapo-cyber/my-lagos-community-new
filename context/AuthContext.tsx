@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { callXanoEndpoint, setAuthToken, getAuthToken } from '../utils/apiClient';
 
+export interface UserAddress {
+  country?: string;
+  state?: string;
+  city?: string;
+  postalCode?: string;
+  address?: string;
+}
+
 export interface User {
   id?: string;
   firstName: string;
@@ -10,6 +18,8 @@ export interface User {
   phone: string;
   address: string;
   avatar?: string;
+  billingAddress?: UserAddress;
+  shippingAddress?: UserAddress;
 }
 
 export interface AuthContextType {
@@ -17,7 +27,7 @@ export interface AuthContextType {
   isLoggedIn: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   signup: (userData: any) => Promise<void>;
   logout: () => void;
   fetchCurrentUser: () => Promise<void>;
@@ -62,47 +72,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       console.log('[Auth] User data:', response);
       
+      // Robust mapping helper
+      const mapDataToUser = (data: any): User => {
+          const mapAddress = (addr: any) => addr ? ({
+              country: addr.country,
+              state: addr.state,
+              city: addr.city,
+              postalCode: addr.postal_code || addr.postalCode,
+              address: addr.address
+          }) : undefined;
+
+          return {
+              id: data.id ? String(data.id) : undefined,
+              firstName: data.firstName || data.first_name || (data.name ? data.name.split(' ')[0] : '') || '',
+              lastName: data.lastName || data.last_name || (data.name ? data.name.split(' ').slice(1).join(' ') : '') || '',
+              username: data.username || data.user_name || '',
+              email: data.email || '',
+              phone: String(data.phone || data.phoneNumber || data.phone_number || ''),
+              address: data.address || '',
+              avatar: data.image || data.avatar || (data.profile_image ? data.profile_image.url : undefined) || undefined,
+              billingAddress: mapAddress(data.billing_address || data.billingAddress),
+              shippingAddress: mapAddress(data.shipping_address || data.shippingAddress),
+          };
+      };
+
       if (response && response.user) {
-        const userData: User = {
-          id: response.user.id,
-          firstName: response.user.firstName || response.user.first_name || '',
-          lastName: response.user.lastName || response.user.last_name || '',
-          username: response.user.username || '',
-          email: response.user.email || '',
-          phone: response.user.phone || response.user.phoneNumber || '',
-          address: response.user.address || '',
-          avatar: response.user.avatar || undefined,
-        };
-        
-        setUser(userData);
-        setIsLoggedIn(true);
-      } else if (response && typeof response === 'object') {
-        // Handle case where user data is directly in response
-        const userData: User = {
-          id: response.id,
-          firstName: response.firstName || response.first_name || '',
-          lastName: response.lastName || response.last_name || '',
-          username: response.username || '',
-          email: response.email || '',
-          phone: response.phone || response.phoneNumber || '',
-          address: response.address || '',
-          avatar: response.avatar || undefined,
-        };
-        
-        setUser(userData);
-        setIsLoggedIn(true);
+         setUser(mapDataToUser(response.user));
+         setIsLoggedIn(true);
+      } else if (response && typeof response === 'object' && (response.id || response.email || response.name || response.firstName)) {
+         setUser(mapDataToUser(response));
+         setIsLoggedIn(true);
       } else {
-        setIsLoggedIn(false);
-        setUser(null);
+         console.warn('[Auth] Unexpected user response format:', response);
+         setIsLoggedIn(false);
+         setUser(null);
       }
     } catch (err: any) {
       console.error('[Auth] Failed to fetch user:', err);
-      setError(err.response?.data?.message || 'Failed to load user data');
+      setError(err.message || 'Failed to load user data');
       setIsLoggedIn(false);
       setUser(null);
       
-      // Clear invalid token
-      if (err.response?.status === 401) {
+      // Clear invalid token if unauthorized
+      if (err.message?.includes('Authentication failed')) {
         setAuthToken(null);
       }
     } finally {
@@ -110,18 +122,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Login with email and password
-  const login = async (email: string, password: string) => {
+  // Login with email or username and password
+  const login = async (identifier: string, password: string) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const payload = {
-        email,
-        password
-      };
+      // Distinguish between email and username for the payload
+      const payload: any = { password };
+      if (identifier.includes('@')) {
+        payload.email = identifier;
+      } else {
+        payload.username = identifier;
+      }
 
-      console.log('[Auth] Logging in...');
+      console.log('[Auth] Logging in with:', identifier.includes('@') ? 'email' : 'username');
       const response = await callXanoEndpoint('auth/login', 'POST', payload);
       
       console.log('[Auth] Login response:', response);
@@ -138,9 +153,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await fetchCurrentUser();
     } catch (err: any) {
       console.error('[Auth] Login failed:', err);
-      const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      let errorMessage = err.message || 'Login failed.';
+      
+      // Refine generic 401/auth errors to be more specific to the input type
+      const lowerError = errorMessage.toLowerCase();
+      if (lowerError.includes('authentication failed') || 
+          lowerError.includes('credentials') ||
+          lowerError.includes('invalid information')) {
+        const type = identifier.includes('@') ? 'email' : 'username';
+        errorMessage = `Invalid ${type} or password. Please try again.`;
+      }
+      
       setError(errorMessage);
-      throw err;
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -175,13 +200,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       setAuthToken(token);
       
-      // Fetch user data after signup
-      await fetchCurrentUser();
+      // Set user directly from response if present
+      const responseUser = response.user;
+      if (responseUser) {
+         const mapAddress = (addr: any) => addr ? ({
+             country: addr.country,
+             state: addr.state,
+             city: addr.city,
+             postalCode: addr.postal_code || addr.postalCode,
+             address: addr.address
+         }) : undefined;
+
+         setUser({
+            id: responseUser.id ? String(responseUser.id) : undefined,
+            firstName: responseUser.firstName || responseUser.first_name || (responseUser.name ? responseUser.name.split(' ')[0] : '') || '',
+            lastName: responseUser.lastName || responseUser.last_name || (responseUser.name ? responseUser.name.split(' ').slice(1).join(' ') : '') || '',
+            username: responseUser.username || '',
+            email: responseUser.email || '',
+            phone: String(responseUser.phone || responseUser.phoneNumber || ''),
+            address: responseUser.address || '',
+            avatar: responseUser.image || responseUser.avatar || undefined,
+            billingAddress: mapAddress(responseUser.billing_address || responseUser.billingAddress),
+            shippingAddress: mapAddress(responseUser.shipping_address || responseUser.shippingAddress),
+         });
+         setIsLoggedIn(true);
+      } else {
+         await fetchCurrentUser();
+      }
     } catch (err: any) {
       console.error('[Auth] Signup failed:', err);
-      const errorMessage = err.response?.data?.message || 'Signup failed. Please try again.';
+      const errorMessage = err.message || 'Signup failed. Please try again.';
       setError(errorMessage);
-      throw err;
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
