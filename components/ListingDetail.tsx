@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Utensils, 
@@ -16,6 +15,7 @@ import {
   Upload,
   Check
 } from 'lucide-react';
+import { ClaimBusiness } from './ClaimBusiness';
 
 interface ListingDetailProps {
   onBack: () => void;
@@ -38,6 +38,7 @@ const GALLERY_IMAGES = [
 export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const nextSlide = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % GALLERY_IMAGES.length);
@@ -80,6 +81,10 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
     { day: 'Sunday', time: '6:30am - 7:30pm' },
   ];
 
+  if (isClaiming) {
+    return <ClaimBusiness onBack={() => setIsClaiming(false)} />;
+  }
+
   return (
     <div className="bg-white min-h-screen">
       {/* Dynamic Hero Gallery Carousel */}
@@ -105,8 +110,6 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
               <div className="absolute inset-0 bg-black/5"></div>
             </div>
           ))}
-          {/* Duplicate some images at the end for smooth looping feel if needed, 
-              but standard modulo carousel is clean enough for this layout */}
         </div>
 
         {/* Carousel Navigation Arrows */}
@@ -407,7 +410,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
               
               <div className="mt-12 pt-8 border-t border-gray-100 text-left">
                 <p className="text-sm font-bold text-gray-900 mb-4 leading-relaxed">Claim your free business page to have your changes published immediately.</p>
-                <button className="text-sm font-black text-blue-600 hover:underline">Claim this business</button>
+                <button onClick={() => setIsClaiming(true)} className="text-sm font-black text-blue-600 hover:underline">Claim this business</button>
               </div>
             </div>
 
