@@ -1,26 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { callXanoEndpoint, setAuthToken, getAuthToken } from '../utils/apiClient';
+import type { User, UserRole, MerchantProfile, UserAddress } from '../types';
+import { mapBackendUserTypeToRole, mapRoleToBackendUserType } from '../types';
 
-export interface UserAddress {
-  country?: string;
-  state?: string;
-  city?: string;
-  postalCode?: string;
-  address?: string;
-}
-
-export interface User {
-  id?: string;
-  firstName: string;
-  lastName: string;
-  username: string;
-  email: string;
-  phone: string;
-  address: string;
-  avatar?: string;
-  billingAddress?: UserAddress;
-  shippingAddress?: UserAddress;
-}
+// Re-export for backward compatibility
+export type { User, UserAddress };
 
 export interface AuthContextType {
   user: User | null;
@@ -32,6 +16,7 @@ export interface AuthContextType {
   logout: () => void;
   fetchCurrentUser: () => Promise<void>;
   setUser: (user: User | null) => void;
+  userRole: UserRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -74,13 +59,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Robust mapping helper
       const mapDataToUser = (data: any): User => {
-          const mapAddress = (addr: any) => addr ? ({
+          const mapAddress = (addr: any): UserAddress | undefined => addr ? ({
               country: addr.country,
               state: addr.state,
               city: addr.city,
               postalCode: addr.postal_code || addr.postalCode,
               address: addr.address
           }) : undefined;
+
+          // Map role from backend user type (User/Admin/Merchant) to frontend role
+          // Check multiple possible field names: type, user_type, role, userType
+          const backendType = data.type || data.user_type || data.userType || data.role;
+          const role: UserRole = mapBackendUserTypeToRole(backendType);
+          
+          console.log('[Auth] Backend user type:', backendType, '→ Frontend role:', role);
+
+          // Map merchant profile if present
+          const merchantProfile: MerchantProfile | undefined = data.merchant_profile || data.merchantProfile
+            ? {
+                id: data.merchant_profile?.id || data.merchantProfile?.id,
+                businessName: data.merchant_profile?.business_name || data.merchantProfile?.businessName || '',
+                businessCategory: data.merchant_profile?.business_category || data.merchantProfile?.businessCategory || '',
+                businessDescription: data.merchant_profile?.business_description || data.merchantProfile?.businessDescription || '',
+                status: data.merchant_profile?.status || data.merchantProfile?.status || 'pending',
+                approvedAt: data.merchant_profile?.approved_at || data.merchantProfile?.approvedAt,
+                createdAt: data.merchant_profile?.created_at || data.merchantProfile?.createdAt,
+              }
+            : undefined;
 
           return {
               id: data.id ? String(data.id) : undefined,
@@ -91,6 +96,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               phone: String(data.phone || data.phoneNumber || data.phone_number || ''),
               address: data.address || '',
               avatar: data.image || data.avatar || (data.profile_image ? data.profile_image.url : undefined) || undefined,
+              role,
+              merchantProfile,
               billingAddress: mapAddress(data.billing_address || data.billingAddress),
               shippingAddress: mapAddress(data.shipping_address || data.shippingAddress),
           };
@@ -177,15 +184,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(true);
       setError(null);
 
-      const payload = {
+      const userRole: UserRole = userData.role || 'customer';
+      const backendUserType = mapRoleToBackendUserType(userRole);
+
+      const payload: any = {
+        login: userData.username, // Backend requires 'login' field
         email: userData.email,
         username: userData.username,
         password: userData.password,
         firstName: userData.firstName,
         lastName: userData.lastName,
         address: userData.address,
-        phoneNumber: userData.phone
+        phoneNumber: userData.phone,
+        type: backendUserType, // Send backend enum format
       };
+
+      // Include merchant data if signing up as merchant
+      if (userRole === 'merchant') {
+        payload.merchantProfile = {
+          businessName: userData.businessName || '',
+          businessCategory: userData.businessCategory || '',
+          businessDescription: userData.businessDescription || '',
+        };
+      }
 
       console.log('[Auth] Signing up...');
       const response = await callXanoEndpoint('auth/signup', 'POST', payload);
@@ -203,13 +224,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Set user directly from response if present
       const responseUser = response.user;
       if (responseUser) {
-         const mapAddress = (addr: any) => addr ? ({
+         const mapAddress = (addr: any): UserAddress | undefined => addr ? ({
              country: addr.country,
              state: addr.state,
              city: addr.city,
              postalCode: addr.postal_code || addr.postalCode,
              address: addr.address
          }) : undefined;
+
+         const role: UserRole = responseUser.role || userData.role || 'customer';
+
+         const merchantProfile: MerchantProfile | undefined = (responseUser.merchant_profile || responseUser.merchantProfile || userData.role === 'merchant')
+           ? {
+               id: responseUser.merchant_profile?.id || responseUser.merchantProfile?.id,
+               businessName: responseUser.merchant_profile?.business_name || responseUser.merchantProfile?.businessName || userData.businessName || '',
+               businessCategory: responseUser.merchant_profile?.business_category || responseUser.merchantProfile?.businessCategory || userData.businessCategory || '',
+               businessDescription: responseUser.merchant_profile?.business_description || responseUser.merchantProfile?.businessDescription || userData.businessDescription || '',
+               status: responseUser.merchant_profile?.status || responseUser.merchantProfile?.status || 'pending',
+             }
+           : undefined;
 
          setUser({
             id: responseUser.id ? String(responseUser.id) : undefined,
@@ -220,6 +253,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             phone: String(responseUser.phone || responseUser.phoneNumber || ''),
             address: responseUser.address || '',
             avatar: responseUser.image || responseUser.avatar || undefined,
+            role,
+            merchantProfile,
             billingAddress: mapAddress(responseUser.billing_address || responseUser.billingAddress),
             shippingAddress: mapAddress(responseUser.shipping_address || responseUser.shippingAddress),
          });
@@ -246,6 +281,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
   };
 
+  const userRole: UserRole = user?.role || 'customer';
+
   const value: AuthContextType = {
     user,
     isLoggedIn,
@@ -256,6 +293,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     logout,
     fetchCurrentUser,
     setUser,
+    userRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
