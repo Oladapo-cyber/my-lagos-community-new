@@ -53,7 +53,7 @@ export const Hero: React.FC = () => {
         </h1>
         
         {/* Sub-header - Slightly smaller on mobile for breathing room */}
-        <p className="text-xs sm:text-lg md:text-[22px] text-white/95 font-bold mb-8 sm:mb-14 tracking-tight leading-relaxed max-w-xl mx-auto drop-shadow-lg px-4">
+        <p className="text-xs sm:text-lg md:text-[22px] md:whitespace-nowrap text-white/95 font-bold mb-8 sm:mb-14 tracking-tight leading-relaxed max-w-xl mx-auto drop-shadow-lg px-4">
           Let's discover some great adventures, explore all the popular<br className="hidden md:block" /> places, and discover the best spots in town.
         </p>
 
