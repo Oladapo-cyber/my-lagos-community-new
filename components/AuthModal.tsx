@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Lock, Eye, EyeOff, Phone, User, ArrowRight, MapPin } from 'lucide-react';
+import { X, Mail, Lock, Eye, EyeOff, Phone, User, ArrowRight, MapPin, Store, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../context/AuthContext';
 import { IMAGES } from '../assets/images';
+import type { UserRole } from '../types';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -109,9 +110,11 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
   const { signup, isLoading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [signupStep, setSignupStep] = useState<'role' | 'details'>('role');
 
   // Validation Schema using Yup
-  const validationSchema = Yup.object({
+  const baseSchema = {
     firstName: Yup.string().required('First name is required'),
     lastName: Yup.string().required('Last name is required'),
     username: Yup.string().required('Username is required').min(3, 'Username must be at least 3 characters'),
@@ -128,7 +131,9 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
     confirmPassword: Yup.string()
       .oneOf([Yup.ref('password')], 'Passwords must match')
       .required('Confirm password is required'),
-  });
+  };
+
+  const validationSchema = Yup.object(baseSchema);
 
   const formik = useFormik({
     initialValues: {
@@ -139,7 +144,7 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
       phone: '', // Will be enforced by handlePhoneChange
       address: '',
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
     },
     validationSchema,
     onSubmit: async (values) => {
@@ -152,6 +157,7 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
           password: values.password,
           phone: values.phone,
           address: values.address,
+          role: selectedRole || 'customer',
         });
         onAuthSuccess();
       } catch (err: any) {
@@ -176,7 +182,67 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
     formik.setFieldValue('phone', val);
   };
 
+  // Role selection step
+  if (signupStep === 'role') {
+    return (
+      <div className="space-y-5">
+        <p className="text-center text-sm text-gray-500 font-medium">How would you like to use My Lagos Community?</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Customer Card */}
+          <button
+            type="button"
+            onClick={() => { setSelectedRole('customer'); setSignupStep('details'); }}
+            className="group relative border-2 border-gray-200 hover:border-blue-600 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10"
+          >
+            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
+              <ShoppingBag className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">I'm Shopping</h3>
+            <p className="text-xs text-gray-500 font-medium leading-relaxed">Browse listings, discover events, and shop from local merchants across Lagos.</p>
+            <ArrowRight className="absolute top-6 right-6 w-5 h-5 text-gray-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+          </button>
+
+          {/* Merchant Card */}
+          <button
+            type="button"
+            onClick={() => { setSelectedRole('merchant'); setSignupStep('details'); }}
+            className="group relative border-2 border-gray-200 hover:border-orange-500 rounded-2xl p-6 text-left transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/10"
+          >
+            <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center mb-4 group-hover:bg-orange-100 transition-colors">
+              <Store className="w-6 h-6 text-orange-600" />
+            </div>
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">I'm Selling</h3>
+            <p className="text-xs text-gray-500 font-medium leading-relaxed">List your business, manage products, events, and connect with customers.</p>
+            <ArrowRight className="absolute top-6 right-6 w-5 h-5 text-gray-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
+    <div>
+      {/* Back to role selection */}
+      <button
+        type="button"
+        onClick={() => setSignupStep('role')}
+        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-blue-600 mb-4 transition-colors"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        <span>Back</span>
+      </button>
+
+      {/* Role badge */}
+      <div className="flex items-center justify-center mb-4">
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+          selectedRole === 'merchant' 
+            ? 'bg-orange-50 text-orange-600 border border-orange-200'
+            : 'bg-blue-50 text-blue-600 border border-blue-200'
+        }`}>
+          {selectedRole === 'merchant' ? <Store className="w-3 h-3" /> : <ShoppingBag className="w-3 h-3" />}
+          {selectedRole === 'merchant' ? 'Merchant Account' : 'Customer Account'}
+        </span>
+      </div>
     <form className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3" onSubmit={formik.handleSubmit}>
         {authError && (
           <div className="md:col-span-2 bg-red-50 text-red-600 p-3 rounded-lg text-xs font-bold mb-2">
@@ -367,7 +433,10 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
              </>
            )}
         </button>
+
+
     </form>
+    </div>
   );
 };
 

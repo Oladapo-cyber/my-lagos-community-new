@@ -1,20 +1,15 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  CalendarDays, 
+  Calendar, 
   MapPin, 
-  Clock, 
-  ArrowLeft, 
+  Facebook, 
+  Twitter, 
+  Instagram, 
+  ArrowRight,
   Heart,
-  Share2,
-  ChevronRight,
-  BarChart2,
-  Ticket,
-  Users,
-  Star,
-  ExternalLink
+  BarChart2
 } from 'lucide-react';
-import { EVENTS_DATA, EventData } from '../data/eventsData';
+import { EVENTS_DATA } from '../data/eventsData';
 
 interface EventDetailPageProps {
   eventId: number;
@@ -24,370 +19,273 @@ interface EventDetailPageProps {
 
 export const EventDetailPage: React.FC<EventDetailPageProps> = ({ eventId, onBack, onEventClick }) => {
   const event = EVENTS_DATA.find(e => e.id === eventId);
+  const [ticketCount, setTicketCount] = useState(1);
   
+  // Design assets from instructions
+  const HERO_IMAGE = "https://communitycra.vercel.app/static/media/eventbanner.8f131c5d46adc1b3ffcc.png";
+  const EVENTS_IMAGE = "https://communitycra.vercel.app/static/media/abtevent.a9e2c54e4af4505034a7.png";
+
   if (!event) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center p-10 bg-white rounded-2xl shadow-xl border border-gray-100">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-            <CalendarDays className="w-10 h-10 text-gray-300" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Event Not Found</h2>
-          <p className="text-gray-500 mb-6">The event you're looking for doesn't exist.</p>
-          <button onClick={onBack} className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-blue-200">
-            Back to Events
-          </button>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Event not found</h2>
+          <button onClick={onBack} className="text-blue-600 hover:underline">Back to Events</button>
         </div>
       </div>
     );
   }
 
+  // Find related events
   const relatedEvents = EVENTS_DATA
-    .filter(e => e.category === event.category && e.id !== event.id)
+    .filter(e => e.id !== event.id)
     .slice(0, 4);
 
-  const additionalEvents = relatedEvents.length < 4 
-    ? EVENTS_DATA.filter(e => e.id !== event.id && !relatedEvents.find(r => r.id === e.id)).slice(0, 4 - relatedEvents.length)
-    : [];
-  
-  const allRelated = [...relatedEvents, ...additionalEvents];
+  // Helper to parse date string "15 Feb, 2026"
+  const getDateParts = (dateStr: string) => {
+    const parts = dateStr.split(' ');
+    return {
+      day: parts[0] || '15',
+      month: parts[1]?.replace(',', '') || 'OCT',
+      year: parts[2] || '2026'
+    };
+  };
+
+  const dateParts = getDateParts(event.date);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb]">
+    <div className="bg-white min-h-screen font-sans text-black">
       
-      {/* Immersive Hero Section */}
-      <div className="relative h-[380px] sm:h-[460px] lg:h-[520px] overflow-hidden">
-        <img 
-          src={event.img} 
-          alt={event.title} 
-          className="w-full h-full object-cover"
-        />
-        {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent"></div>
-        
-        {/* Back Button */}
-        <button 
-          onClick={onBack}
-          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2.5 bg-white/15 backdrop-blur-md border border-white/20 rounded-xl text-white text-sm font-semibold hover:bg-white/25 transition-all duration-300 group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back
-        </button>
+      {/* 1. HERO / TICKET SECTION */}
+      <div className="w-full bg-white">
+        <div className="container mx-auto ">
+            <div className="flex flex-col lg:flex-row bg-white shadow-xl overflow-hidden border border-gray-100">
+                {/* Left Side - Banner Image */}
+                <div className="lg:w-[65%] w-full relative">
+                    <img 
+                      src={HERO_IMAGE} 
+                      alt="Event Banner" 
+                      className="w-full h-full object-cover min-h-[400px]"
+                    />
+                </div>
 
-        {/* Action Buttons */}
-        <div className="absolute top-6 right-6 flex items-center gap-3">
-          <button className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-all duration-300 hover:scale-105">
-            <Heart className="w-5 h-5" />
-          </button>
-          <button className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-all duration-300 hover:scale-105">
-            <Share2 className="w-5 h-5" />
-          </button>
-        </div>
+                {/* Right Side - Registration Info */}
+                <div className="lg:w-[35%] w-full bg-white p-6 md:p-8 relative flex flex-col justify-between">
+                    {/* Vertical Registration Text - Absolute positioned decor */}
+                    <div className="hidden lg:flex absolute right-0 top-0 bottom-0 w-12 bg-[#222] text-white items-center justify-center overflow-hidden z-10">
+                        <span className="transform rotate-90 whitespace-nowrap uppercase tracking-[0.2em] font-bold text-sm">Registration</span>
+                    </div>
+                    
+                    <div className="pr-8">
+                        {/* Date Badge */}
+                        <div className="mb-4">
+                            <p className="text-xs uppercase font-bold text-[#FF4500] mb-0">SATURDAY</p>
+                            <h2 className="text-3xl font-black text-[#FF4500] uppercase leading-tight">
+                                {dateParts.month} {dateParts.day}
+                            </h2>
+                        </div>
 
-        {/* Hero Content Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10 lg:p-14">
-          <div className="max-w-7xl mx-auto">
-            {/* Category Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 backdrop-blur-md border border-white/20 rounded-full mb-4">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-              <span className="text-white/90 text-xs font-bold uppercase tracking-wider">{event.category}</span>
-            </div>
-            
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-4 max-w-3xl drop-shadow-lg">
-              {event.title}
-            </h1>
-            
-            <div className="flex flex-wrap items-center gap-5 text-white/80">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-blue-300" />
-                <span className="text-sm font-semibold">{event.date}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-purple-300" />
-                <span className="text-sm font-semibold">{event.time}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-rose-300" />
-                <span className="text-sm font-semibold">{event.location}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                        {/* Event Title/Venue */}
+                        <h3 className="font-bold text-xs text-black uppercase mb-1 leading-relaxed tracking-wide">{event.location}</h3>
+                        <p className="text-[#FF4500] font-bold text-xl mb-6">{event.time}</p>
 
-      {/* Floating Action Bar */}
-      <div className="max-w-7xl mx-auto px-6 sm:px-10 -mt-8 relative z-10 mb-10">
-        <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
-                <Ticket className="w-6 h-6 text-orange-500" />
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wider text-gray-400 font-bold">Ticket Price</p>
-                <p className={`text-xl font-black ${event.price === 'Free' ? 'text-emerald-500' : 'text-gray-900'}`}>
-                  {event.price}
-                </p>
-              </div>
+                        {/* Pricing Table */}
+                        <div className="mb-6">
+                            <h4 className="font-bold text-[10px] text-gray-500 uppercase mb-2">PRICE/ TICKET</h4>
+                            <div className="grid grid-cols-2 gap-3 text-[10px]">
+                                <div className="border border-dashed border-gray-400 p-2">
+                                    <span className="block text-black font-bold">REGULAR | <span className="text-[#FF4500]">5,000</span></span>
+                                </div>
+                                <div className="border border-dashed border-gray-400 p-2">
+                                    <span className="block text-black font-bold">GOLD | <span className="text-[#FF4500]">1,000,000</span></span>
+                                </div>
+                                <div className="border border-dashed border-gray-400 p-2">
+                                    <span className="block text-black font-bold">VIP | <span className="text-[#FF4500]">20,000</span></span>
+                                </div>
+                                <div className="border border-dashed border-gray-400 p-2">
+                                    <span className="block text-black font-bold">PLATINUM | <span className="text-[#FF4500]">1,500,000</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Deadline */}
+                        <div className="mb-8 border-t border-dotted border-gray-300 pt-4">
+                            <h4 className="font-bold text-[10px] text-black uppercase mb-1">REGISTRATION DEADLINE</h4>
+                            <p className="text-[#FF4500] font-bold text-lg">{event.date}</p>
+                        </div>
+
+                        {/* Action */}
+                        <div className="flex items-center justify-between">
+                            <button className="bg-[#1976D2] hover:bg-blue-700 text-white px-8 py-3 font-bold text-xs uppercase transition-colors shadow-sm rounded-sm">
+                                BUY TICKET
+                            </button>
+                            <div className="text-right">
+                                <p className="text-[10px] font-bold text-black">Any Question?</p>
+                                <a href="mailto:support@mic.com" className="text-[10px] text-gray-500">support@mic.com</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="hidden sm:block w-px h-12 bg-gray-100"></div>
-            <div className="hidden sm:flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wider text-gray-400 font-bold">Attendees</p>
-                <p className="text-xl font-black text-gray-900">150+</p>
-              </div>
-            </div>
-          </div>
-          <button className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-300 shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 hover:-translate-y-0.5">
-            Buy Ticket Now
-          </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 sm:px-10 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Left Column - Details */}
-          <div className="lg:col-span-2 space-y-8">
+      {/* 2. MAIN CONTENT GRID */}
+      <div className="container mx-auto px-4 py-12">
+        <div className="flex flex-col md:flex-row gap-12">
             
-            {/* About Section */}
-            <div className="bg-white rounded-2xl p-7 sm:p-9 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-7 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full"></div>
-                <h2 className="text-xl font-black text-gray-900">About This Event</h2>
-              </div>
-              <p className="text-base text-gray-600 leading-[1.8] font-normal">{event.description}</p>
-              <p className="text-base text-gray-600 leading-[1.8] font-normal mt-4">
-                Join us for this amazing experience in the heart of Lagos. Don't miss out on what promises to be one of the most memorable events of the season. Whether you're a seasoned attendee or visiting for the first time, there's something for everyone.
-              </p>
-            </div>
-
-            {/* Event Gallery Preview */}
-            <div className="bg-white rounded-2xl p-7 sm:p-9 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-7 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></div>
-                <h2 className="text-xl font-black text-gray-900">Event Gallery</h2>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="aspect-[4/3] rounded-xl overflow-hidden group cursor-pointer">
-                  <img src={event.img} alt="Gallery 1" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                </div>
-                <div className="aspect-[4/3] rounded-xl overflow-hidden group cursor-pointer">
-                  <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&auto=format&fit=crop" alt="Gallery 2" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                </div>
-                <div className="aspect-[4/3] rounded-xl overflow-hidden relative group cursor-pointer">
-                  <img src="https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400&auto=format&fit=crop" alt="Gallery 3" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <span className="text-white font-bold text-sm">View All</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tags Section */}
-            <div className="bg-white rounded-2xl p-7 sm:p-9 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-7 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
-                <h2 className="text-xl font-black text-gray-900">Event Tags</h2>
-              </div>
-              <div className="flex flex-wrap gap-2.5">
-                {event.tags.map((tag, idx) => (
-                  <span 
-                    key={idx} 
-                    className="px-5 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-xl text-xs font-bold border border-blue-100/80 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-200 transition-all duration-300 cursor-pointer hover:shadow-sm"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                <span className="px-5 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 rounded-xl text-xs font-bold border border-gray-200 hover:from-gray-100 hover:to-gray-150 transition-all duration-300 cursor-pointer hover:shadow-sm">
-                  {event.category}
-                </span>
-              </div>
-            </div>
-
-            {/* Share Section */}
-            <div className="bg-white rounded-2xl p-7 sm:p-9 border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1 h-7 bg-gradient-to-b from-rose-500 to-red-500 rounded-full"></div>
-                <h2 className="text-xl font-black text-gray-900">Share With Friends</h2>
-              </div>
-              <div className="flex items-center gap-3">
-                <a href="#" className="w-12 h-12 rounded-xl bg-[#1877f2] flex items-center justify-center text-white hover:opacity-90 transition-all duration-300 shadow-lg shadow-blue-200/50 hover:shadow-xl hover:-translate-y-0.5">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
-                </a>
-                <a href="#" className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center text-white hover:opacity-90 transition-all duration-300 shadow-lg shadow-pink-200/50 hover:shadow-xl hover:-translate-y-0.5">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-                </a>
-                <a href="#" className="w-12 h-12 rounded-xl bg-black flex items-center justify-center text-white hover:opacity-90 transition-all duration-300 shadow-lg shadow-gray-300/50 hover:shadow-xl hover:-translate-y-0.5">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            
-            {/* Date & Time Card */}
-            <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-              <div className="p-6">
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-5 flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4 text-blue-600" />
-                  Date & Time
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4 p-3.5 bg-blue-50/50 rounded-xl">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-200/50">
-                      <CalendarDays className="w-5 h-5 text-white" />
+            {/* LEFT SIDEBAR - DETAILS */}
+            <div className="md:w-1/4 space-y-8">
+                {/* Date and Time Group */}
+                <div className="flex gap-3">
+                    <div className="mt-1">
+                        <Calendar className="w-5 h-5 text-black" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-800">{event.date}</p>
-                      <p className="text-xs text-gray-400 font-medium">Event Date</p>
+                        <h4 className="font-bold text-sm text-black mb-1">Date and time</h4>
+                        <p className="text-xs text-black block">{event.date}</p>
+                        <p className="text-xs text-black block">{event.time}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-3.5 bg-purple-50/50 rounded-xl">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-200/50">
-                      <Clock className="w-5 h-5 text-white" />
+                </div>
+
+                {/* Location Group */}
+                <div className="flex gap-3">
+                    <div className="mt-1">
+                        <MapPin className="w-5 h-5 text-black" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-800">{event.time}</p>
-                      <p className="text-xs text-gray-400 font-medium">Start Time</p>
+                        <h4 className="font-bold text-sm text-black mb-1">Location</h4>
+                        <p className="text-xs text-black leading-relaxed">
+                            {event.location}
+                        </p>
                     </div>
-                  </div>
                 </div>
-              </div>
             </div>
 
-            {/* Location Card */}
-            <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="h-1.5 bg-gradient-to-r from-rose-500 to-pink-500"></div>
-              <div className="p-6">
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-5 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-rose-500" />
-                  Location
-                </h3>
-                <div className="flex items-center gap-4 p-3.5 bg-rose-50/50 rounded-xl mb-4">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-rose-200/50">
-                    <MapPin className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">{event.location}</p>
-                    <p className="text-xs text-gray-400 font-medium">Lagos, Nigeria</p>
-                  </div>
+            {/* MIDDLE CONTENT - DESCRIPTION */}
+            <div className="md:w-3/4">
+                <div className="mb-8 font-bold italic text-black text-sm pr-4">
+                    {event.title} - Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
                 </div>
-                {/* Map Placeholder */}
-                <div className="rounded-xl overflow-hidden border border-gray-100 h-36 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 relative group cursor-pointer">
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
-                      <MapPin className="w-6 h-6 text-blue-500" />
-                    </div>
-                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1">
-                      View on Map <ExternalLink className="w-3 h-3" />
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Organizer Card */}
-            <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-              <div className="p-6">
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-5 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-emerald-600" />
-                  Organizer
-                </h3>
-                <div className="flex items-center gap-4 mb-5">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-200/50">
-                    {event.organizer.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-base font-bold text-gray-900">{event.organizer}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3 h-3 text-amber-400 fill-amber-400" />
-                      ))}
-                      <span className="text-xs text-gray-400 font-medium ml-1">5.0</span>
-                    </div>
-                  </div>
+                <h2 className="text-2xl font-black text-black mb-4">About this event</h2>
+                <div className="text-sm text-black space-y-4 mb-8 leading-relaxed text-justify">
+                    <p>{event.description}</p>
                 </div>
-                <button className="w-full py-3 border-2 border-gray-200 text-gray-700 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-gray-50 hover:border-gray-300 transition-all duration-300">
-                  Contact Organizer
-                </button>
-              </div>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-xl shadow-blue-200/50">
-              <h3 className="font-black text-lg mb-2">Don't miss out!</h3>
-              <p className="text-white/70 text-sm mb-5 leading-relaxed">Secure your spot before tickets sell out. Limited availability.</p>
-              <button className="w-full py-3.5 bg-white text-blue-700 rounded-xl text-sm font-black uppercase tracking-wider hover:bg-blue-50 transition-all duration-300 shadow-lg">
-                Get Tickets Now
-              </button>
+                {/* Second Image (Event Atmosphere) */}
+                <div className="mb-8">
+                    <img 
+                        src={EVENTS_IMAGE} 
+                        alt="Event Atmosphere" 
+                        className="w-full h-auto shadow-sm"
+                    />
+                </div>
+
+                {/* Tags */}
+                <div className="mb-8">
+                    <h3 className="font-bold text-sm text-gray-800 mb-3">Event Tags</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {event.tags && event.tags.map((tag) => (
+                            <span key={tag} className="px-4 py-1.5 bg-gray-100 text-black text-xs rounded-full font-bold">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Share */}
+                <div className="mb-12">
+                     <h3 className="font-bold text-sm text-black mb-3">Share with friends</h3>
+                     <div className="flex gap-4">
+                        <button className="w-10 h-10 rounded-full border border-black flex items-center justify-center text-black hover:bg-black hover:text-white transition-all">
+                            <Facebook className="w-5 h-5" />
+                        </button>
+                        <button className="w-10 h-10 rounded-full border border-black flex items-center justify-center text-black hover:bg-black hover:text-white transition-all">
+                            <Instagram className="w-5 h-5" />
+                        </button>
+                        <button className="w-10 h-10 rounded-full border border-black flex items-center justify-center text-black hover:bg-black hover:text-white transition-all">
+                            <Twitter className="w-5 h-5" />
+                        </button>
+                     </div>
+                </div>
+
+                {/* Centered Info Block */}
+                <div className="flex flex-col items-center justify-center border-t border-gray-200 pt-12 pb-12 space-y-8">
+                    {/* Theme */}
+                    <div className="text-center">
+                        <h3 className="font-black text-lg text-black uppercase tracking-widest mb-2 border-b-2 border-gray-200 pb-1 inline-block">Event Theme</h3>
+                        <p className="text-xs text-black font-bold block mt-2">at</p>
+                        <h4 className="font-black text-lg text-black uppercase tracking-widest mt-2 border-b-2 border-gray-200 pb-1 inline-block">Event Address</h4>
+                    </div>
+
+                    {/* Organizer */}
+                    <div className="text-center">
+                         <h3 className="font-black text-lg text-black uppercase tracking-widest mb-2 border-b-2 border-gray-200 pb-1 inline-block">Organizer's Name</h3>
+                         <p className="text-xs text-black mt-2 mb-6">{event.organizer || 'Lagos Community Events'}</p>
+                         
+                         <button className="bg-[#222] text-white px-8 py-3 text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors">
+                             CONTACT ORGANIZER
+                         </button>
+                    </div>
+                </div>
+
             </div>
-          </div>
         </div>
+      </div>
 
-        {/* Related Events */}
-        {allRelated.length > 0 && (
-          <section className="mt-16">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-7 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full"></div>
-                <h2 className="text-2xl font-extrabold text-gray-900">You May Also Like</h2>
-              </div>
-              <button 
-                onClick={onBack} 
-                className="text-blue-600 hover:text-blue-700 text-sm font-bold transition-colors flex items-center gap-1 group"
-              >
-                See All
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+      {/* 3. RELATED EVENTS */}
+      <div className="w-full bg-white border-t border-gray-100">
+         <div className="container mx-auto px-4 py-12">
+            <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
+                <h2 className="text-2xl font-black text-black uppercase">Other Events You May Like</h2>
+                <div className="flex items-center gap-2">
+                    <button onClick={onBack} className="text-blue-400 hover:text-blue-600 transition-colors">
+                        <span className="sr-only">See all</span>
+                        <ArrowRight className="w-6 h-6 border border-blue-200 rounded-full p-1" />
+                    </button>
+                    <span className="font-cursive text-black text-lg italic">See All</span>
+                </div>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {allRelated.map((relatedEvent) => (
-                <div 
-                  key={relatedEvent.id}
-                  className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer hover:shadow-xl hover:-translate-y-1.5 transition-all duration-400"
-                  onClick={() => {
-                    onEventClick?.(relatedEvent.id);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                >
-                  <div className="relative aspect-[1.35/1] overflow-hidden">
-                    <img src={relatedEvent.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={relatedEvent.title} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <div className="absolute top-3 right-3 flex flex-col gap-2">
-                      <div className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-gray-400 shadow-sm hover:text-blue-600 hover:bg-white transition-all">
-                        <BarChart2 className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 hover:bg-white transition-all">
-                        <Heart className="w-3.5 h-3.5" />
-                      </div>
+                {relatedEvents.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="group cursor-pointer bg-white border border-gray-100 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                      onClick={() => onEventClick && onEventClick(item.id)}
+                    >
+                        <div className="relative h-48 overflow-hidden">
+                             <img 
+                               src={item.img} 
+                               alt={item.title} 
+                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                             />
+                             {/* Icons overlay - Removed background as per user preference for cleaner look */}
+                             <div className="absolute bottom-2 right-2 flex flex-col gap-2">
+                                <span className="bg-white/90 p-1.5 rounded-full shadow-sm">
+                                    <BarChart2 className="w-3 h-3 text-black" />
+                                </span>
+                                <span className="bg-white/90 p-1.5 rounded-full shadow-sm">
+                                    <Heart className="w-3 h-3 text-black" />
+                                </span>
+                             </div>
+                        </div>
+                        <div className="p-4 bg-white">
+                            <h3 className="font-bold text-black text-xs mb-1 truncate">{item.title}</h3>
+                            <div className="inline-block bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600 uppercase mb-2 rounded-sm">Workshop</div>
+                            <div className="flex flex-col gap-0.5 mt-2">
+                                <div className="text-xs text-gray-700 block">{item.date}</div>
+                                <div className="text-xs text-gray-700 block">{item.location}</div>
+                                <div className="text-xs text-[#FF4500] font-bold block mt-1">Ticket Price : {item.price}</div>
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-sm font-extrabold text-gray-800 mb-3 line-clamp-2 min-h-[2.5rem] leading-snug group-hover:text-blue-700 transition-colors">{relatedEvent.title}</h3>
-                    <div className="space-y-1 text-[11px] font-medium text-gray-400 uppercase">
-                      <p>{relatedEvent.date}</p>
-                      <p className="line-clamp-1">{relatedEvent.location}</p>
-                      <div className="pt-3 border-t border-gray-100 mt-3 text-gray-600">
-                        Ticket Price : <span className={`font-bold ${relatedEvent.price === 'Free' ? 'text-emerald-500' : 'text-[#ff4500]'}`}>{relatedEvent.price}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
-          </section>
-        )}
+         </div>
       </div>
+
     </div>
   );
 };

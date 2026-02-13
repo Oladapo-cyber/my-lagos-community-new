@@ -11,7 +11,6 @@ import { Testimonials } from './components/Testimonials';
 import { BlogSection } from './components/BlogSection';
 import { Footer } from './components/Footer';
 import { AIChatBot } from './components/AIChatBot';
-import { Dashboard } from './components/Dashboard';
 import { ListingsPage } from './components/ListingsPage';
 import { ListingDetail } from './components/ListingDetail';
 import { ContactPage } from './components/ContactPage';
@@ -19,33 +18,85 @@ import { EventsPage } from './components/EventsPage';
 import { AddBusinessPage } from './components/AddBusinessPage';
 import { ShopPage } from './components/ShopPage';
 import { ProductDetail } from './components/ProductDetail';
+import { EventDetailPage } from './components/EventDetailPage';
 import { AuthModal } from './components/AuthModal';
+import { NotFoundPage } from './components/NotFoundPage';
+import { CustomerDashboard } from './components/dashboards/customer/CustomerDashboard';
+import { MerchantDashboard } from './components/dashboards/merchant/MerchantDashboard';
+import { AdminDashboard } from './components/dashboards/admin/AdminDashboard';
 import { useAuth } from './context/AuthContext';
+import { getDashboardForUser } from './utils/routeGuards';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
+
+// Wrapper for EventDetailPage to extract URL params
+const EventDetailWrapper: React.FC<{ onEventClick: (id: number) => void }> = ({ onEventClick }) => {
+  const { eventId } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
+  
+  if (!eventId || isNaN(Number(eventId))) {
+    return <Navigate to="/events" replace />;
+  }
+  
+  return (
+    <EventDetailPage 
+      eventId={Number(eventId)} 
+      onBack={() => navigate('/events')} 
+      onEventClick={onEventClick} 
+    />
+  );
+};
+
+// Wrapper for ListingDetail to extract URL params
+const ListingDetailWrapper: React.FC = () => {
+  const { listingId } = useParams<{ listingId: string }>();
+  const navigate = useNavigate();
+  
+  if (!listingId || isNaN(Number(listingId))) {
+    return <Navigate to="/listings" replace />;
+  }
+  
+  return (
+    <ListingDetail onBack={() => navigate('/listings')} />
+  );
+};
+
+// Wrapper for ProductDetail to extract URL params
+const ProductDetailWrapper: React.FC<{ onProductClick: (id: number) => void }> = ({ onProductClick }) => {
+  const { productId } = useParams<{ productId: string }>();
+  const navigate = useNavigate();
+  
+  if (!productId || isNaN(Number(productId))) {
+    return <Navigate to="/shop" replace />;
+  }
+  
+  return (
+    <ProductDetail onBack={() => navigate('/shop')} onProductClick={onProductClick} />
+  );
+};
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<'home' | 'dashboard' | 'listings' | 'listing-detail' | 'contact' | 'events' | 'add-business' | 'shop' | 'product-detail'>('home');
-  const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
-  
+
   // Get auth state from context
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, isLoading, logout, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isDashboardPath = location.pathname.startsWith('/dashboard');
 
   const handleListingClick = (id: number) => {
-    setSelectedListingId(id);
-    setCurrentView('listing-detail');
+    navigate(`/listings/${id}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleEventClick = (id: number) => {
+    navigate(`/events/${id}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleProductClick = (id: number) => {
-    setSelectedProductId(id);
-    setCurrentView('product-detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const navigateTo = (view: typeof currentView) => {
-    setCurrentView(view);
+    navigate(`/shop/${id}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -56,70 +107,81 @@ const App: React.FC = () => {
 
   const handleAuthSuccess = () => {
     setIsAuthModalOpen(false);
-    navigateTo('dashboard'); 
+    // After login, route to /dashboard which will redirect based on role
+    navigate('/dashboard');
   };
 
   const handleLogout = () => {
     logout();
-    navigateTo('home');
+    navigate('/');
   };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden">
       <Navbar 
-        onProfileClick={() => navigateTo('dashboard')} 
-        onLogoClick={() => navigateTo('home')} 
-        onListingsClick={() => navigateTo('listings')}
-        onContactClick={() => navigateTo('contact')}
-        onEventsClick={() => navigateTo('events')}
-        onAddBusinessClick={() => navigateTo('add-business')}
-        onShopClick={() => navigateTo('shop')}
+        onProfileClick={() => navigate('/dashboard')}
+        onLogoClick={() => navigate('/')}
+        onListingsClick={() => navigate('/listings')}
+        onContactClick={() => navigate('/contact')}
+        onEventsClick={() => navigate('/events')}
+        onAddBusinessClick={() => navigate('/add-business')}
+        onShopClick={() => navigate('/shop')}
         onLoginClick={() => openAuthModal('login')}
         onSignupClick={() => openAuthModal('signup')}
         isLoggedIn={isLoggedIn}
         onLogoutClick={handleLogout}
       />
-      
-      <main className={currentView !== 'home' ? 'pt-24' : ''}>
-        {currentView === 'home' && (
-          <>
-            <Hero />
-            <CategoryStrip />
-            <CuriositySection />
-            <HowItWorks />
-            <FeaturedSection />
-            <PopularLocations onListingClick={handleListingClick} />
-            <Testimonials />
-            <BlogSection />
-            <Footer />
-          </>
-        )}
-        {currentView === 'listings' && (
-          <ListingsPage onListingClick={handleListingClick} />
-        )}
-        {currentView === 'listing-detail' && (
-          <ListingDetail onBack={() => navigateTo('listings')} />
-        )}
-        {currentView === 'contact' && (
-          <ContactPage />
-        )}
-        {currentView === 'events' && (
-          <EventsPage />
-        )}
-        {currentView === 'add-business' && (
-          <AddBusinessPage onBackToDashboard={() => navigateTo('dashboard')} />
-        )}
-        {currentView === 'shop' && (
-          <ShopPage onProductClick={handleProductClick} />
-        )}
-        {currentView === 'product-detail' && (
-          <ProductDetail onBack={() => navigateTo('shop')} onProductClick={handleProductClick} />
-        )}
-        {currentView === 'dashboard' && <Dashboard onReturnHome={() => navigateTo('home')} />}
+
+      <main className={location.pathname !== '/' ? 'pt-20' : ''}>
+        <Routes>
+          <Route path="/" element={
+            <>
+              <Hero />
+              <CategoryStrip />
+              <CuriositySection />
+              <HowItWorks />
+              <FeaturedSection />
+              <PopularLocations onListingClick={handleListingClick} />
+              <Testimonials />
+              <BlogSection />
+              <Footer />
+            </>
+          } />
+
+          <Route path="/listings" element={<ListingsPage onListingClick={handleListingClick} />} />
+          <Route path="/listings/:listingId" element={<ListingDetailWrapper />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/events" element={<EventsPage onEventClick={handleEventClick} />} />
+          <Route path="/events/:eventId" element={<EventDetailWrapper onEventClick={handleEventClick} />} />
+          <Route path="/add-business" element={<AddBusinessPage onBackToDashboard={() => navigate('/dashboard')} />} />
+          <Route path="/shop" element={<ShopPage onProductClick={handleProductClick} />} />
+          <Route path="/shop/:productId" element={<ProductDetailWrapper onProductClick={handleProductClick} />} />
+
+          {/* Dashboard redirect and role-guarded nested dashboards */}
+          <Route path="/dashboard" element={<DashboardRouterRedirect />} />
+          <Route path="/dashboard/customer/*" element={
+            <ProtectedRoute allowedRole="customer">
+              <CustomerDashboard onReturnHome={() => navigate('/')} />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/merchant/*" element={
+            <ProtectedRoute allowedRole="merchant">
+              <MerchantDashboard onReturnHome={() => navigate('/')} />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/admin/*" element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminDashboard onReturnHome={() => navigate('/')} />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/404" element={<NotFoundPage onReturnHome={() => navigate('/')} />} />
+          <Route path="*" element={<Navigate to="/404" replace />} />
+        </Routes>
       </main>
 
       <AIChatBot />
-      {currentView !== 'home' && currentView !== 'dashboard' && <Footer />}
+      {location.pathname !== '/' && !isDashboardPath && <Footer />}
 
       {/* Auth Modal Popup */}
       <AuthModal 
@@ -130,6 +192,45 @@ const App: React.FC = () => {
       />
     </div>
   );
+};
+
+// Loading spinner shown while auth state is being resolved
+const LoadingScreen: React.FC = () => (
+  <div className="flex items-center justify-center h-[calc(100vh-96px)]">
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Loading...</p>
+    </div>
+  </div>
+);
+
+// Protects dashboard routes: shows loader while auth initializes, 404 if unauthorized
+const ProtectedRoute: React.FC<{ allowedRole: string; children: React.ReactNode }> = ({ allowedRole, children }) => {
+  const { isLoggedIn, isLoading, user } = useAuth();
+  const navigate = useNavigate();
+
+  if (isLoading) return <LoadingScreen />;
+  if (!isLoggedIn || user?.role !== allowedRole) return <NotFoundPage onReturnHome={() => navigate('/')} />;
+  return <>{children}</>;
+};
+
+// Redirects /dashboard to the correct role-specific dashboard
+const DashboardRouterRedirect: React.FC = () => {
+  const { user, isLoggedIn, isLoading } = useAuth();
+
+  if (isLoading) return <LoadingScreen />;
+
+  const dashboardType = isLoggedIn && user ? getDashboardForUser(user) : null;
+  switch (dashboardType) {
+    case 'admin':
+      return <Navigate to="/dashboard/admin" replace />;
+    case 'merchant':
+      return <Navigate to="/dashboard/merchant" replace />;
+    case 'customer':
+      return <Navigate to="/dashboard/customer" replace />;
+    default:
+      return <Navigate to="/404" replace />;
+  }
 };
 
 export default App;
