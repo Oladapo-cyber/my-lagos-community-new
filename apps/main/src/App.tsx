@@ -19,6 +19,9 @@ import { AddBusinessPage } from './components/AddBusinessPage';
 import { ShopPage } from './components/ShopPage';
 import { ProductDetail } from './components/ProductDetail';
 import { EventDetailPage } from './components/EventDetailPage';
+import { SelectTicketCategory } from './components/SelectTicketCategory';
+import { EventRegistration } from './components/EventRegistration';
+import { Checkout } from './components/Checkout';
 import { AuthModal } from './components/AuthModal';
 import { NotFoundPage } from './components/NotFoundPage';
 import { CustomerDashboard } from './components/dashboards/customer/CustomerDashboard';
@@ -150,6 +153,9 @@ const App: React.FC = () => {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/events" element={<EventsPage onEventClick={handleEventClick} />} />
           <Route path="/events/:eventId" element={<EventDetailWrapper onEventClick={handleEventClick} />} />
+          <Route path="/events/:eventId/select-ticket" element={<SelectTicketCategory />} />
+          <Route path="/events/:eventId/registration" element={<EventRegistration />} />
+          <Route path="/events/:eventId/checkout" element={<Checkout />} />
           <Route path="/add-business" element={<AddBusinessPage onBackToDashboard={() => navigate('/dashboard')} />} />
           <Route path="/shop" element={<ShopPage onProductClick={handleProductClick} />} />
           <Route path="/shop/:productId" element={<ProductDetailWrapper onProductClick={handleProductClick} />} />
