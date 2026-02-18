@@ -1,28 +1,23 @@
 {
-  "name": "my-lagos-community",
+  "name": "my-lagos-community-monorepo",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "packageManager": "npm@11.1.0",
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@tailwindcss/vite": "^4.1.18",
-    "axios": "^1.13.5",
-    "formik": "^2.4.9",
-    "lucide-react": "0.344.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "react-router-dom": "^6.12.1",
-    "tailwindcss": "^4.1.18",
-    "yup": "^1.7.1"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "type-check": "turbo run type-check",
+    "dev:main": "npm run dev --workspace=apps/main",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "build:main": "npm run build --workspace=apps/main",
+    "build:admin": "npm run build --workspace=apps/admin"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "turbo": "^2.4.0"
   }
 }
