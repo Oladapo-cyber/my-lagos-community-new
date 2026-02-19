@@ -9,10 +9,10 @@ export const AdminEventsView = () => {
 
   // Summary cards data
   const summaryCards = [
-    { label: 'Published Events', value: '10000', change: '+10%', positive: true, icon: Calendar, color: 'bg-blue-500' },
-    { label: 'Total Categories', value: '10000', change: '+10%', positive: true, icon: FolderOpen, color: 'bg-emerald-500' },
-    { label: 'Total Registrations', value: '10000', change: '+10%', positive: true, icon: Users, color: 'bg-amber-500' },
-    { label: 'Total Reviews', value: '10000', change: '+10%', positive: true, icon: Star, color: 'bg-red-500' },
+    { label: 'Published Events', value: '3', change: '+10%', positive: true, icon: Calendar, color: 'bg-blue-500' },
+    { label: 'Total Categories', value: '4', change: '+10%', positive: true, icon: FolderOpen, color: 'bg-emerald-500' },
+    { label: 'Total Registrations', value: '4', change: '+10%', positive: true, icon: Users, color: 'bg-amber-500' },
+    { label: 'Total Reviews', value: '1', change: '+10%', positive: true, icon: Star, color: 'bg-red-500' },
   ];
 
   // Chart data
@@ -119,61 +119,6 @@ export const AdminEventsView = () => {
       regType: 'Paid',
       goals: '100,000',
       status: 'Active',
-    },
-    {
-      id: 5,
-      name: 'Lagos Community Meet & Greet',
-      organizer: 'My Lagos Community',
-      category: 'Social Networking',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      registration: 10000,
-      regType: 'Paid',
-      goals: '100,000',
-      status: 'Active',
-    },
-    {
-      id: 6,
-      name: 'Lagos Community Meet & Greet',
-      organizer: 'My Lagos Community',
-      category: 'Concert',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      registration: 10000,
-      regType: 'Free',
-      goals: '100,000',
-      status: 'Cancelled',
-    },
-    {
-      id: 7,
-      name: 'Lagos Community Meet & Greet',
-      organizer: 'My Lagos Community',
-      category: 'Social Networking',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      registration: 10000,
-      regType: 'Paid',
-      goals: '100,000',
-      status: 'Concluded',
-    },
-    {
-      id: 8,
-      name: 'Lagos Community Meet & Greet',
-      organizer: 'My Lagos Community',
-      category: 'Conference',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      registration: 10000,
-      regType: 'Paid',
-      goals: '100,000',
-      status: 'Concluded',
-    },
-    {
-      id: 9,
-      name: 'Lagos Community Meet & Greet',
-      organizer: 'My Lagos Community',
-      category: 'Festival',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      registration: 10000,
-      regType: 'Paid',
-      goals: '1,000,000',
-      status: 'Concluded',
     },
   ];
 

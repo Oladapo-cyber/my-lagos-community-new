@@ -29,10 +29,10 @@ ChartJS.register(
 export const AdminStatsOverview = () => {
   // --- Data ---
   const summaryCards = [
-    { label: 'Total Listings', value: '10,000', change: '+10%', positive: true, icon: List, color: 'bg-emerald-500' },
-    { label: 'Total Events', value: '10,000', change: '+10%', positive: true, icon: Calendar, color: 'bg-blue-500' },
-    { label: 'Total Sales', value: '₦10,000', change: '-10%', positive: false, icon: ShoppingBag, color: 'bg-indigo-500' }, // Assuming Naira for Lagos context
-    { label: 'Total Users', value: '10,000', change: '+10%', positive: true, icon: Users, color: 'bg-purple-500' },
+    { label: 'Total Listings', value: '3', change: '+10%', positive: true, icon: List, color: 'bg-emerald-500' },
+    { label: 'Total Events', value: '3', change: '+10%', positive: true, icon: Calendar, color: 'bg-blue-500' },
+    { label: 'Total Merchant', value: '1', change: '-10%', positive: false, icon: ShoppingBag, color: 'bg-indigo-500' }, // Assuming Naira for Lagos context
+    { label: 'Total Users', value: '2', change: '+10%', positive: true, icon: Users, color: 'bg-purple-500' },
   ];
 
   const orderStatusData = {
@@ -204,7 +204,7 @@ export const AdminStatsOverview = () => {
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
                 <p className="text-xs text-gray-400 font-medium">Total Orders</p>
-                <p className="text-xl font-bold text-gray-800">4,250</p>
+                <p className="text-xl font-bold text-gray-800">2</p>
               </div>
             </div>
           </div>
@@ -293,7 +293,7 @@ export const AdminStatsOverview = () => {
         {/* Best Products */}
         <div className="lg:col-span-3 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-gray-800">Best Product</h3>
+            <h3 className="text-lg font-bold text-gray-800">Top Listings</h3>
             <a href="#" className="text-xs text-blue-600 hover:text-blue-700 font-medium">See All</a>
           </div>
           <div className="space-y-4">
