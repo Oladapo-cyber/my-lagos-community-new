@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
-import { Lock, Shield } from 'lucide-react';
+
+const TESTIMONIAL_BG = 'https://communitycra.vercel.app/static/media/testimonial-bg.c8ade2e3b78e6414590c.png';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAdminAuth();
@@ -27,73 +29,79 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="flex justify-center mb-6">
-            <div className="bg-red-100 p-4 rounded-full">
-              <Shield className="w-10 h-10 text-red-600" />
-            </div>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{
+        backgroundImage: `url(${TESTIMONIAL_BG})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Login Card */}
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-sm px-10 py-10">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-7">Hello Admin!</h2>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-5 text-sm">
+            {error}
           </div>
-          
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-2">
-            Admin Access
-          </h2>
-          <p className="text-center text-gray-600 mb-8">
-            My Lagos Community — Authorized personnel only
-          </p>
+        )}
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm"
-                placeholder="admin@mylagoscommunity.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 text-sm uppercase tracking-widest"
-            >
-              <Lock className="w-4 h-4" />
-              <span>{loading ? 'Authenticating...' : 'Sign In'}</span>
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              This is a restricted area. Unauthorized access attempts are logged.
-            </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="border-b border-gray-300">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full py-2 text-sm text-gray-700 placeholder-gray-400 bg-transparent outline-none"
+              placeholder="Email Address"
+            />
           </div>
-        </div>
+
+          <div className="border-b border-gray-300">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full py-2 text-sm text-gray-700 placeholder-gray-400 bg-transparent outline-none"
+              placeholder="Password"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              id="rememberMe"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 accent-blue-600 cursor-pointer"
+            />
+            <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer select-none">
+              Remeber Me
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-md transition-colors duration-200 text-sm tracking-widest uppercase mt-2 disabled:opacity-60"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+      </div>
+
+      {/* Forgot password — outside the card */}
+      <div className="mt-5">
+        <a
+          href="#"
+          className="text-sm text-orange-500 hover:text-orange-600 underline underline-offset-2 transition-colors"
+        >
+          Forgot password?
+        </a>
       </div>
     </div>
   );
