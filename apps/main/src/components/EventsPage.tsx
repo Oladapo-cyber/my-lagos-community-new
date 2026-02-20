@@ -34,9 +34,11 @@ interface Category {
   /**  Xano category value  this label maps to  */
   xanoValue?: string;
   subcategories?: string[];
+  isAllCategories?: boolean;
 }
 
 const CATEGORIES: Category[] = [
+  { icon: Briefcase, label: 'All Categories', isAllCategories: true },
   { icon: Briefcase, label: 'Business', xanoValue: 'Business' },
   { icon: Gamepad2, label: 'Gaming', xanoValue: 'Gaming' },
   { icon: Activity, label: 'Health & Wellness', xanoValue: 'Health & Wellness' },
@@ -152,7 +154,13 @@ export const EventsPage: React.FC<EventsPageProps> = ({ onEventClick }) => {
     : events;
 
   const handleCategoryClick = (cat: Category) => {
-    if (cat.subcategories && cat.subcategories.length > 0) {
+    if (cat.isAllCategories) {
+      // "All Categories" button clicked
+      setSelectedCategory('');
+      setExpandedCategory(null);
+      setActiveSubcategory(null);
+      setCurrentPage(1);
+    } else if (cat.subcategories && cat.subcategories.length > 0) {
       // Religious events with subcategories
       setExpandedCategory(expandedCategory === cat.label ? null : cat.label);
       setSelectedCategory('');
@@ -217,16 +225,16 @@ export const EventsPage: React.FC<EventsPageProps> = ({ onEventClick }) => {
                 <div 
                   onClick={() => handleCategoryClick(cat)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 group
-                    ${(selectedCategory === cat.xanoValue || expandedCategory === cat.label) 
+                    ${(cat.isAllCategories && !selectedCategory) || (selectedCategory === cat.xanoValue) || (expandedCategory === cat.label)
                       ? 'bg-blue-50 border border-blue-100' 
                       : 'hover:bg-white hover:shadow-sm'
                     }`}
                 >
                   <cat.icon className={`w-4 h-4 transition-colors
-                    ${(selectedCategory === cat.xanoValue || expandedCategory === cat.label) ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}
+                    ${(cat.isAllCategories && !selectedCategory) || (selectedCategory === cat.xanoValue) || (expandedCategory === cat.label) ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}
                   `} />
                   <span className={`text-xs font-semibold transition-colors flex-1
-                    ${(selectedCategory === cat.xanoValue || expandedCategory === cat.label) ? 'text-blue-700' : 'text-gray-500 group-hover:text-gray-800'}
+                    ${(cat.isAllCategories && !selectedCategory) || (selectedCategory === cat.xanoValue) || (expandedCategory === cat.label) ? 'text-blue-700' : 'text-gray-500 group-hover:text-gray-800'}
                   `}>
                     {cat.label}
                   </span>
