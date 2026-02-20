@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { List, FolderOpen, Eye, Star, Search, Calendar, Grid3x3, List as ListIcon, MoreVertical, FileText, Loader2, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { List, FolderOpen, Eye, Star, Search, Calendar, Grid3x3, List as ListIcon, MoreVertical, FileText, Loader2, AlertCircle, MapPin } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
-import { getAllBusinesses, approveBusiness } from '@mlc/api-client';
+import { getAllBusinesses, approveBusiness, parseApiResponseError } from '@mlc/api-client';
+import { useToast } from '@mlc/ui-components';
 import type { Business } from '@mlc/shared-types';
 
 export const AdminListingsView = () => {
+  const toast = useToast();
+
+  // ── Filter / UI state ───────────────────────────────────────────────────
+  const [publishTab, setPublishTab] = useState<'all' | 'draft' | 'published'>('all');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // ── Real API state ──────────────────────────────────────────────────────
   const [allListings, setAllListings] = useState<Business[]>([]);
@@ -17,18 +26,33 @@ export const AdminListingsView = () => {
   const [serverPrevPage, setServerPrevPage] = useState<number | null>(null);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
-  const handleApprove = async (id: number, approved: boolean) => {
-    setApprovingId(id);
+  const handleApprove = async (listing: Business, approved: boolean) => {
+    setApprovingId(listing.id);
     try {
-      await approveBusiness(id, approved, 'admin');
+      await approveBusiness(listing, approved, 'admin');
       setAllListings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, approved } : b)),
+        prev.map((b) => (b.id === listing.id ? { ...b, approved } : b)),
+      );
+      toast.success(
+        approved ? 'Listing approved' : 'Listing revoked',
+        approved ? 'The listing is now visible to the public.' : 'The listing has been hidden.',
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update listing status.');
+      const msg = parseApiResponseError(err);
+      toast.error('Failed to update listing', msg);
     } finally {
       setApprovingId(null);
     }
+  };
+
+  // Retry counter — incrementing it forces the useEffect to re-run even when
+  // page and publishTab haven't changed
+  const [retryKey, setRetryKey] = useState(0);
+
+  // When the publish tab changes, always reset to page 1
+  const handleTabChange = (tab: 'all' | 'draft' | 'published') => {
+    setPublishTab(tab);
+    setCurrentPage(1);
   };
 
   useEffect(() => {
@@ -36,7 +60,11 @@ export const AdminListingsView = () => {
     setIsLoading(true);
     setFetchError(null);
 
-    getAllBusinesses({ page: currentPage, per_page: itemsPerPage }, 'admin')
+    const apiParams: Record<string, unknown> = { page: currentPage, per_page: itemsPerPage };
+    if (publishTab === 'published') apiParams.approved = true;
+    if (publishTab === 'draft') apiParams.approved = false;
+
+    getAllBusinesses(apiParams as Parameters<typeof getAllBusinesses>[0], 'admin')
       .then((res) => {
         if (!cancelled) {
           setAllListings(res.items);
@@ -45,16 +73,19 @@ export const AdminListingsView = () => {
         }
       })
       .catch((err) => {
-        if (!cancelled) setFetchError(err instanceof Error ? err.message : 'Failed to load listings.');
+        if (!cancelled) setFetchError(parseApiResponseError(err));
       })
       .finally(() => { if (!cancelled) setIsLoading(false); });
 
     return () => { cancelled = true; };
-  }, [currentPage]);
+  }, [currentPage, publishTab, retryKey]);
 
   // Derived stats from currently loaded page
   const approvedCount = allListings.filter((b) => b.approved).length;
   const pendingCount  = allListings.filter((b) => !b.approved).length;
+
+  // Unique categories across the currently loaded page (for the filter dropdown)
+  const uniqueCategories = Array.from(new Set(allListings.map((b) => b.category))).sort();
 
   // Summary cards — values derived from live API data
   const summaryCards = [
@@ -125,12 +156,24 @@ export const AdminListingsView = () => {
       image: b.images?.[0] ?? '',
     }));
 
-  // Client-side keyword filter on the server-returned page
-  const filteredListings = allListings.filter((listing) =>
-    listing.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    listing.address.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // Client-side filters layered on top of the server page
+  const filteredListings = allListings.filter((listing) => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matches =
+        listing.name.toLowerCase().includes(q) ||
+        listing.category.toLowerCase().includes(q) ||
+        listing.address.toLowerCase().includes(q) ||
+        listing.email.toLowerCase().includes(q);
+      if (!matches) return false;
+    }
+    if (filterCategory && listing.category !== filterCategory) return false;
+    if (filterFromDate) {
+      const from = new Date(filterFromDate).getTime();
+      if (!isNaN(from) && listing.created_at < from) return false;
+    }
+    return true;
+  });
 
   // Pagination is server-driven; client filtering is over the current page only
   const totalPages = serverNextPage !== null ? currentPage + 1 : currentPage;
@@ -275,48 +318,94 @@ export const AdminListingsView = () => {
           </div>
 
           {/* Search and Filters */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                placeholder="Search Event/Organizer"
+                placeholder="Search name / category / address"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <select className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Select Category</option>
-              <option>Restaurant</option>
-              <option>Hotel</option>
-              <option>Bar & Restaurant</option>
-              <option>Cafe</option>
+
+            {/* Category filter — dynamic from loaded data */}
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Categories</option>
+              {uniqueCategories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
-            <select className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Select Status</option>
-              <option>Active</option>
-              <option>Deactivated</option>
-            </select>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
-              <Calendar size={16} />
-              From
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-              <Grid3x3 size={16} />
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-              <ListIcon size={16} />
-            </button>
-            <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
-              All
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-              Draft
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-              Published
-            </button>
+
+            {/* From date filter */}
+            <div className="relative">
+              <button
+                onClick={() => dateInputRef.current?.showPicker?.()}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2"
+              >
+                <Calendar size={14} />
+                {filterFromDate ? new Date(filterFromDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) : 'From date'}
+                {filterFromDate && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setFilterFromDate(''); }}
+                    className="ml-1 text-gray-400 hover:text-gray-600 leading-none"
+                  >×</span>
+                )}
+              </button>
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={filterFromDate}
+                onChange={(e) => setFilterFromDate(e.target.value)}
+                className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                tabIndex={-1}
+              />
+            </div>
+
+            {/* Grid / List view toggle */}
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setViewMode('grid')}
+                title="Grid view"
+                className={`px-3 py-2 text-sm ${
+                  viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Grid3x3 size={15} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                title="List view"
+                className={`px-3 py-2 text-sm border-l border-gray-300 ${
+                  viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <ListIcon size={15} />
+              </button>
+            </div>
+
+            {/* Publish-state tabs */}
+            <div className="flex gap-1 ml-auto">
+              {(['all', 'draft', 'published'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                    publishTab === tab
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab === 'all' ? 'All' : tab === 'draft' ? 'Pending' : 'Published'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -332,11 +421,64 @@ export const AdminListingsView = () => {
               <AlertCircle className="w-8 h-8 text-red-400" />
               <p className="text-sm font-medium text-gray-500">{fetchError}</p>
               <button
-                onClick={() => setCurrentPage((p) => p)}
+                onClick={() => setRetryKey((k) => k + 1)}
                 className="text-xs font-bold text-blue-600 hover:underline"
               >
                 Retry
               </button>
+            </div>
+          ) : viewMode === 'grid' ? (
+            /* ─── GRID VIEW ────────────────────────────────────────────── */
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredListings.length === 0 && (
+                <p className="col-span-full text-center text-sm text-gray-400 py-12">No listings match your filters.</p>
+              )}
+              {filteredListings.map((listing) => (
+                <div key={listing.id} className="border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  <div className="w-full h-36 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                    <List size={32} className="text-gray-300" />
+                    {listing.images?.[0] && (
+                      <img
+                        src={listing.images[0]}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <div className="flex items-start justify-between gap-1 mb-1">
+                      <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2">{listing.name}</p>
+                      <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusStyle(listing.approved)}`}>
+                        {listing.approved ? 'Active' : 'Pending'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-1">{listing.category}</p>
+                    <p className="text-xs text-gray-400 flex items-center gap-1 truncate">
+                      <MapPin size={11} />{listing.address}
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      {!listing.approved ? (
+                        <button
+                          onClick={() => handleApprove(listing, true)}
+                          disabled={approvingId === listing.id}
+                          className="flex-1 text-xs font-bold text-emerald-600 border border-emerald-200 rounded py-1 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {approvingId === listing.id ? 'Approving…' : 'Approve'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleApprove(listing, false)}
+                          disabled={approvingId === listing.id}
+                          className="flex-1 text-xs font-bold text-red-500 border border-red-200 rounded py-1 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {approvingId === listing.id ? 'Revoking…' : 'Revoke'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
           <table className="w-full">
@@ -357,11 +499,16 @@ export const AdminListingsView = () => {
                 <tr key={listing.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
-                      {listing.images?.[0] ? (
-                        <img src={listing.images[0]} alt={listing.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
-                      )}
+                      <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                        {listing.images?.[0] && (
+                          <img
+                            src={listing.images[0]}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        )}
+                      </div>
                       <span className="text-sm font-medium text-gray-900">{listing.name}</span>
                     </div>
                   </td>
@@ -379,7 +526,7 @@ export const AdminListingsView = () => {
                     <div className="flex items-center gap-2">
                       {!listing.approved && (
                         <button
-                          onClick={() => handleApprove(listing.id, true)}
+                          onClick={() => handleApprove(listing, true)}
                           disabled={approvingId === listing.id}
                           className="text-xs font-bold text-emerald-600 hover:text-emerald-700 border border-emerald-200 rounded px-2 py-0.5 hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Approve this listing"
@@ -389,7 +536,7 @@ export const AdminListingsView = () => {
                       )}
                       {listing.approved && (
                         <button
-                          onClick={() => handleApprove(listing.id, false)}
+                          onClick={() => handleApprove(listing, false)}
                           disabled={approvingId === listing.id}
                           className="text-xs font-bold text-red-500 hover:text-red-600 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Revoke approval"

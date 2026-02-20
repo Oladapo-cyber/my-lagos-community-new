@@ -57,18 +57,37 @@ export async function createBusiness(
 }
 
 /**
- * Approve or reject a business listing in Xano.
+ * Update a business listing in Xano — used by admin to approve/revoke.
  *
- * Calls PATCH /business/{id} with { approved } to update the listing status.
+ * Sends the FULL existing business record with only `approved` changed.
+ * Xano's POST /business/update requires all fields to be present; omitting
+ * any field would blank it out on the server.
  *
- * @param id       The business record ID.
- * @param approved  Pass `true` to approve, `false` to reject/revoke.
+ * @param business The full current business object (fetched from the API).
+ * @param approved The new approval state to apply.
  * @param app      App context for auth token. Default: 'admin'.
  */
 export async function approveBusiness(
-  id: number,
+  business: Business,
   approved: boolean,
   app: AppType = 'admin',
 ): Promise<Business> {
-  return callXanoEndpoint(`business/${id}`, 'PUT', { approved }, undefined, app) as Promise<Business>;
+  const payload = {
+    business_id:  business.id,
+    name:         business.name,
+    category:     business.category,
+    description:  business.description,
+    email:        business.email,
+    phoneNumber:  business.phoneNumber,
+    website:      business.website,
+    address:      business.address,
+    images:       business.images,
+    amenities:    business.amenities,
+    hours:        business.hours ?? {},
+    approved,
+    lga_id:       business.lga_id,
+    status:       business.status,
+    user_id:      business.user_id,
+  };
+  return callXanoEndpoint('business/update', 'POST', payload, undefined, app) as Promise<Business>;
 }

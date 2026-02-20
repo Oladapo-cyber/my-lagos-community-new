@@ -1,15 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Store, CheckCircle, XCircle, Clock, Eye, MoreVertical, Loader2, AlertCircle } from 'lucide-react';
-import { getAllBusinesses, approveBusiness } from '@mlc/api-client';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Store, CheckCircle, XCircle, Clock, MoreVertical, Loader2, AlertCircle, Calendar, MapPin } from 'lucide-react';
+import { getAllBusinesses, approveBusiness, parseApiResponseError } from '@mlc/api-client';
+import { useToast } from '@mlc/ui-components';
 import type { Business } from '@mlc/shared-types';
 
 export const AdminMerchantsView = () => {
-  const [tab, setTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const toast = useToast();
 
-  // ── Real API state ──────────────────────────────────────────────────
+  // ── Filter / UI state ────────────────────────────────────────────────
+  const [tab, setTab] = useState<'all' | 'pending' | 'approved'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [retryKey, setRetryKey] = useState(0);
+  const itemsPerPage = 20;
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Real API state ───────────────────────────────────────────────────
   const [merchants, setMerchants] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -17,18 +25,28 @@ export const AdminMerchantsView = () => {
   const [serverPrevPage, setServerPrevPage] = useState<number | null>(null);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
-  const handleApprove = async (id: number, approved: boolean) => {
-    setApprovingId(id);
+  const handleApprove = async (merchant: Business, approved: boolean) => {
+    setApprovingId(merchant.id);
     try {
-      await approveBusiness(id, approved, 'admin');
+      await approveBusiness(merchant, approved, 'admin');
       setMerchants((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, approved } : m)),
+        prev.map((m) => (m.id === merchant.id ? { ...m, approved } : m)),
+      );
+      toast.success(
+        approved ? 'Merchant approved' : 'Merchant revoked',
+        approved ? 'The merchant account is now active.' : 'The merchant account has been suspended.',
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update merchant status.');
+      toast.error('Failed to update merchant', parseApiResponseError(err));
     } finally {
       setApprovingId(null);
     }
+  };
+
+  // Changing the tab resets pagination to page 1
+  const handleTabChange = (next: 'all' | 'pending' | 'approved') => {
+    setTab(next);
+    setCurrentPage(1);
   };
 
   useEffect(() => {
@@ -36,7 +54,11 @@ export const AdminMerchantsView = () => {
     setIsLoading(true);
     setFetchError(null);
 
-    getAllBusinesses({ page: currentPage, per_page: itemsPerPage }, 'admin')
+    const apiParams: Record<string, unknown> = { page: currentPage, per_page: itemsPerPage };
+    if (tab === 'approved') apiParams.approved = true;
+    if (tab === 'pending')  apiParams.approved = false;
+
+    getAllBusinesses(apiParams as Parameters<typeof getAllBusinesses>[0], 'admin')
       .then((res) => {
         if (!cancelled) {
           setMerchants(res.items);
@@ -45,34 +67,46 @@ export const AdminMerchantsView = () => {
         }
       })
       .catch((err) => {
-        if (!cancelled) setFetchError(err instanceof Error ? err.message : 'Failed to load merchants.');
+        if (!cancelled) setFetchError(parseApiResponseError(err));
       })
       .finally(() => { if (!cancelled) setIsLoading(false); });
 
     return () => { cancelled = true; };
-  }, [currentPage]);
+  }, [currentPage, tab, retryKey]);
 
-  // Map Business.approved → status string for tab filtering
+  // Map Business.approved → status string for display
   const getStatus = (m: Business) => m.approved ? 'approved' : 'pending';
 
+  // Client-side keyword + category + date filter on the server page
   const filtered = merchants.filter((m) => {
-    const status = getStatus(m);
-    const matchSearch =
-      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchTab = tab === 'all' || status === tab;
-    return matchSearch && matchTab;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matches =
+        m.name.toLowerCase().includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        m.category.toLowerCase().includes(q) ||
+        m.address.toLowerCase().includes(q);
+      if (!matches) return false;
+    }
+    if (filterCategory && m.category !== filterCategory) return false;
+    if (filterFromDate) {
+      const from = new Date(filterFromDate).getTime();
+      if (!isNaN(from) && m.created_at < from) return false;
+    }
+    return true;
   });
 
+  // Tab counts derived from the loaded server page
   const approvedCount = merchants.filter((m) => m.approved).length;
-  const pendingCount = merchants.filter((m) => !m.approved).length;
+  const pendingCount  = merchants.filter((m) => !m.approved).length;
 
-  const tabs = [
-    { id: 'all', label: 'All', count: merchants.length },
-    { id: 'pending', label: 'Pending', count: pendingCount },
-    { id: 'approved', label: 'Approved', count: approvedCount },
-    { id: 'rejected', label: 'Rejected', count: 0 },
+  // Dynamic category list from loaded data
+  const uniqueCategories = Array.from(new Set(merchants.map((m) => m.category))).sort();
+
+  const tabConfig = [
+    { id: 'all'      as const, label: 'All',      count: merchants.length },
+    { id: 'pending'  as const, label: 'Pending',  count: pendingCount     },
+    { id: 'approved' as const, label: 'Approved', count: approvedCount    },
   ];
 
   const formatDate = (ts: number) =>
@@ -80,12 +114,12 @@ export const AdminMerchantsView = () => {
 
   return (
     <div className="space-y-6">
-      {/* Tab Filter */}
+      {/* ── Status tabs ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
-        {tabs.map((t) => (
+        {tabConfig.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id as any)}
+            onClick={() => handleTabChange(t.id)}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
               tab === t.id
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
@@ -97,22 +131,67 @@ export const AdminMerchantsView = () => {
         ))}
       </div>
 
-      {/* Merchants Table */}
+      {/* ── Merchants table card ─────────────────────────────────────── */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        {/* Header row */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
             <Store className="w-5 h-5 text-orange-500" />
             <h2 className="text-lg font-extrabold text-gray-900">Merchants</h2>
             <span className="text-xs font-bold text-gray-400">({filtered.length})</span>
           </div>
-          <div className="relative w-full sm:w-64">
+        </div>
+
+        {/* ── Filter bar ──────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search merchants..."
+              placeholder="Search name / email / category"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Category filter — dynamic from loaded data */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Categories</option>
+            {uniqueCategories.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          {/* From date filter */}
+          <div className="relative">
+            <button
+              onClick={() => dateInputRef.current?.showPicker?.()}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Calendar size={14} />
+              {filterFromDate
+                ? new Date(filterFromDate).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })
+                : 'From date'}
+              {filterFromDate && (
+                <span
+                  onClick={(e) => { e.stopPropagation(); setFilterFromDate(''); }}
+                  className="ml-1 text-gray-400 hover:text-gray-600 leading-none"
+                >×</span>
+              )}
+            </button>
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={filterFromDate}
+              onChange={(e) => setFilterFromDate(e.target.value)}
+              className="absolute opacity-0 w-0 h-0 pointer-events-none"
+              tabIndex={-1}
             />
           </div>
         </div>
@@ -127,7 +206,12 @@ export const AdminMerchantsView = () => {
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <AlertCircle className="w-8 h-8 text-red-400" />
               <p className="text-sm font-medium text-gray-500">{fetchError}</p>
-              <button onClick={() => setCurrentPage((p) => p)} className="text-xs font-bold text-blue-600 hover:underline">Retry</button>
+              <button
+                onClick={() => setRetryKey((k) => k + 1)}
+                className="text-xs font-bold text-blue-600 hover:underline"
+              >
+                Retry
+              </button>
             </div>
           ) : (
           <table className="w-full text-left">
@@ -144,17 +228,28 @@ export const AdminMerchantsView = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map((merchant) => {
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-16 text-sm text-gray-400">
+                    No merchants match your filters.
+                  </td>
+                </tr>
+              ) : filtered.map((merchant) => {
                 const status = getStatus(merchant);
                 return (
                   <tr key={merchant.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
-                        {merchant.images?.[0] ? (
-                          <img src={merchant.images[0]} alt={merchant.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
-                        ) : (
-                          <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
-                        )}
+                        <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                          {merchant.images?.[0] && (
+                            <img
+                              src={merchant.images[0]}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                        </div>
                         <div>
                           <p className="font-extrabold text-gray-900 text-sm">{merchant.name}</p>
                           <p className="text-[10px] text-gray-400">Joined {formatDate(merchant.created_at)}</p>
@@ -179,7 +274,7 @@ export const AdminMerchantsView = () => {
                       <div className="flex items-center justify-center gap-1">
                         {!merchant.approved && (
                           <button
-                            onClick={() => handleApprove(merchant.id, true)}
+                            onClick={() => handleApprove(merchant, true)}
                             disabled={approvingId === merchant.id}
                             className="p-1.5 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-500 transition-colors disabled:opacity-50"
                             title="Approve"
@@ -189,7 +284,7 @@ export const AdminMerchantsView = () => {
                         )}
                         {merchant.approved && (
                           <button
-                            onClick={() => handleApprove(merchant.id, false)}
+                            onClick={() => handleApprove(merchant, false)}
                             disabled={approvingId === merchant.id}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
                             title="Revoke"

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AdminAuthProvider } from './context/AdminAuthContext';
+import { ToastProvider } from '@mlc/ui-components';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -15,7 +16,9 @@ root.render(
   <React.StrictMode>
     <BrowserRouter>
       <AdminAuthProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </AdminAuthProvider>
     </BrowserRouter>
   </React.StrictMode>

@@ -60,7 +60,8 @@ export async function getAllEvents(
   const queryParams: Record<string, unknown> = {
     page:      params.page      ?? 1,
     per_page:  params.per_page  ?? 8,
-    approved:  params.approved  !== undefined ? (params.approved ? 1 : 0) : 1,
+    // Only send approved filter when explicitly set — omitting it returns ALL events (needed for admin)
+    ...(params.approved !== undefined && { approved: params.approved ? 1 : 0 }),
     status:    params.status    ?? '',
     lga_id:    params.lga_id    ?? 0,
     name:      params.name      ?? '',
@@ -92,18 +93,38 @@ export async function createEvent(
 }
 
 /**
- * Approve or reject an event in Xano.
+ * Update an event in Xano — used by admin to approve/revoke.
  *
- * Calls PUT /event/{id} with { approved } to update the event approval status.
+ * Sends the FULL existing event record with only `approved` changed.
+ * Xano's POST /event/update requires all fields to be present; omitting
+ * any field would blank it out on the server.
  *
- * @param id       The event record ID.
- * @param approved  Pass `true` to approve, `false` to reject/revoke.
+ * @param event    The full current event object (fetched from the API).
+ * @param approved The new approval state to apply.
  * @param app      App context for auth token. Default: 'admin'.
  */
 export async function approveEvent(
-  id: number,
+  event: XanoEvent,
   approved: boolean,
   app: AppType = 'admin',
 ): Promise<XanoEvent> {
-  return callXanoEndpoint(`event/${id}`, 'PUT', { approved }, undefined, app, XANO_EVENT_BASE_URL) as Promise<XanoEvent>;
+  const payload = {
+    event_id:     event.id,
+    name:         event.name,
+    contact_info: event.contact_info,
+    category:     event.category,
+    about:        event.about,
+    approved,
+    image:        event.image,
+    status:       event.status,
+    user_id:      event.user_id,
+    tags:         event.tags,
+    theme:        event.theme,
+    type:         event.type,
+    lga_id:       event.lga_id,
+    address:      event.address,
+    schdule:      event.schdule,
+    time_end:     event.time_end ?? null,
+  };
+  return callXanoEndpoint('event/update', 'POST', payload, undefined, app, XANO_EVENT_BASE_URL) as Promise<XanoEvent>;
 }
