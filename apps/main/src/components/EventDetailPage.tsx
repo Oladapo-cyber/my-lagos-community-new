@@ -89,14 +89,27 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({ eventId, onBac
     .filter((e) => e.id !== eventId)
     .slice(0, 4);
 
-  // Helper to parse date string "2025-09-18" or fallback "15 Feb, 2026"
-  const getDateParts = (dateStr: string | undefined) => {
-    if (!dateStr) {
+  // Helper to parse date from timestamp or ISO string "2025-09-18", or fallback "15 Feb, 2026"
+  const getDateParts = (dateInput: string | number | undefined) => {
+    if (!dateInput) {
       return {
         day: '15',
         month: 'FEB',
         year: new Date().getFullYear().toString()
       };
+    }
+
+    let dateStr: string;
+
+    // Handle Unix timestamp (number in milliseconds)
+    if (typeof dateInput === 'number') {
+      const date = new Date(dateInput);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      dateStr = `${year}-${month}-${day}`;
+    } else {
+      dateStr = dateInput;
     }
 
     // Handle ISO format "2025-09-18"

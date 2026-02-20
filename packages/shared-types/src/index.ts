@@ -313,8 +313,9 @@ export interface EventLocationData {
 
 /** Event schedule/location object */
 export interface EventSchedule {
-  data: EventLocationData;
   type: 'point' | string;
+  data?: EventLocationData;
+  time_end?: string; // Unix timestamp in milliseconds
 }
 
 /**
@@ -329,7 +330,7 @@ export interface XanoEvent {
   about: string; // Event description
   approved: boolean;
   image: string[]; // Array of image URLs
-  status: 'Active' | 'Concluded' | 'Cancelled' | string; // Event status
+  status: 'Draft' | 'Active' | 'Concluded' | 'Cancelled'; // Event status enum from backend
   user_id: number;
   tags: string[]; // Array of tag strings
   theme: string; // Event theme
@@ -338,7 +339,7 @@ export interface XanoEvent {
   lga_name?: string; // Only in /event/all response
   address: string; // Venue address
   schdule: EventSchedule; // Note: Xano has typo "schdule" instead of "schedule"
-  time_end: string; // End date, e.g. "2025-09-18"
+  time_end: number; // Unix timestamp in milliseconds
   contact_info: EventContactInfo;
 }
 
@@ -367,7 +368,7 @@ export interface GetAllEventsParams {
   name?: string;
   status?: string;
   tags?: string; // Xano expects a string, not an array
-  time_end?: string; // Filter to events ending before this date (required by Xano — defaults to far future)
+  time_end?: number; // Filter to events ending before this date (required by Xano — defaults to far future)
 }
 
 /**
@@ -379,6 +380,8 @@ export interface GetEventParams {
 
 /**
  * Payload for POST /event/create.
+ * Status must be one of: Draft, Active, Concluded, Cancelled
+ * time_end must be Unix timestamp in milliseconds
  */
 export interface CreateEventPayload {
   name: string;
@@ -387,15 +390,15 @@ export interface CreateEventPayload {
   about: string;
   approved?: boolean;
   image: string[]; // Cloudinary URLs
-  status: string;
+  status: 'Draft' | 'Active' | 'Concluded' | 'Cancelled';
   user_id: number;
   tags: string[];
   theme: string;
   type: 'Physical' | 'Hybrid' | 'Online';
   lga_id: number;
   address: string;
-  schdule: Record<string, unknown>; // Flexible for now
-  time_end: string | null;
+  schdule: EventSchedule; // Xano typo: "schdule" instead of "schedule"
+  time_end: number; // Unix timestamp in milliseconds
 }
 
 // ============================

@@ -382,18 +382,24 @@ export const EventsPage: React.FC<EventsPageProps> = ({ onEventClick }) => {
           {!isLoading && !error && displayedEvents.length > 0 && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {displayedEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    id={event.id}
-                    title={event.name}
-                    date={event.time_end}
-                    location={event.lga_id?.toString() || 'Lagos'}
-                    category={event.category}
-                    image={event.image?.[0] || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400'}
-                    onClick={() => onEventClick?.(event.id)}
-                  />
-                ))}
+                {displayedEvents.map((event) => {
+                  // Convert Unix timestamp to readable date string
+                  const eventDate = typeof event.time_end === 'number'
+                    ? new Date(event.time_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : event.time_end;
+                  return (
+                    <EventCard
+                      key={event.id}
+                      id={event.id}
+                      title={event.name}
+                      date={eventDate}
+                      location={event.lga_id?.toString() || 'Lagos'}
+                      category={event.category}
+                      image={event.image?.[0] || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400'}
+                      onClick={() => onEventClick?.(event.id)}
+                    />
+                  );
+                })}
               </div>
 
               {/* Pagination Controls */}
