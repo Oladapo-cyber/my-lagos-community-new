@@ -21,16 +21,18 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { id: 'events', icon: Calendar, label: 'Events', path: '/dashboard/events' },
   { id: 'listings', icon: List, label: 'Listings', path: '/dashboard/listings' },
-  { id: 'financials', icon: DollarSign, label: 'Financials', path: '/dashboard/financials' },
-  { id: 'shop-header', label: 'SHOP', isSection: true },
-  { id: 'retail-dashboard', label: 'Retail Dashboard', path: '/dashboard/shop' },
-  { id: 'products', label: 'Products', path: '/dashboard/shop/products' },
-  { id: 'orders', label: 'Orders', path: '/dashboard/shop/orders' },
-  { id: 'customers', label: 'Customers', path: '/dashboard/shop/customers' },
-  { id: 'reviews', label: 'Reviews', path: '/dashboard/shop/reviews' },
+  // { id: 'financials', icon: DollarSign, label: 'Financials', path: '/dashboard/financials' }, // no live endpoint yet
+  // -- SHOP section: no live endpoints yet --
+  // { id: 'shop-header', label: 'SHOP', isSection: true },
+  // { id: 'retail-dashboard', label: 'Retail Dashboard', path: '/dashboard/shop' },
+  // { id: 'products', label: 'Products', path: '/dashboard/shop/products' },
+  // { id: 'orders', label: 'Orders', path: '/dashboard/shop/orders' },
+  // { id: 'customers', label: 'Customers', path: '/dashboard/shop/customers' },
+  // { id: 'reviews', label: 'Reviews', path: '/dashboard/shop/reviews' },
   { id: 'admin-header', label: 'ADMIN', isSection: true },
-  { id: 'system-users', label: 'System Users', path: '/dashboard/users' },
-  { id: 'audit-trail', label: 'Audit Trail', path: '/dashboard/logs' },
+  { id: 'merchants', icon: Store, label: 'Merchants', path: '/dashboard/merchants' },
+  // { id: 'system-users', label: 'System Users', path: '/dashboard/users' }, // no live endpoint yet
+  // { id: 'audit-trail', label: 'Audit Trail', path: '/dashboard/logs' }, // no live endpoint yet
 ];
 
 export const AdminLayoutWrapper = ({ children }: AdminLayoutWrapperProps) => {

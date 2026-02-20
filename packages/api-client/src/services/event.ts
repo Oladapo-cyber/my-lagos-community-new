@@ -60,8 +60,9 @@ export async function getAllEvents(
   const queryParams: Record<string, unknown> = {
     page:      params.page      ?? 1,
     per_page:  params.per_page  ?? 8,
-    // Only send approved filter when explicitly set — omitting it returns ALL events (needed for admin)
-    ...(params.approved !== undefined && { approved: params.approved ? 1 : 0 }),
+    // Xano REQUIRES the approved param — omitting it returns 0 results.
+    // Default to 1 (approved). Use approved=false explicitly for pending events.
+    approved:  params.approved !== undefined ? (params.approved ? 1 : 0) : 1,
     status:    params.status    ?? '',
     lga_id:    params.lga_id    ?? 0,
     name:      params.name      ?? '',

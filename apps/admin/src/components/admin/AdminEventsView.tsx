@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Users, FolderOpen, Star, Search, Calendar as CalendarIcon, Grid3x3, List as ListIcon, Plus, MoreVertical, Loader2, AlertCircle } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
 import { getAllEvents, approveEvent } from '@mlc/api-client';
+import { useToast } from '@mlc/ui-components';
 import type { XanoEvent } from '@mlc/shared-types';
 
 export const AdminEventsView = () => {
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -17,15 +19,16 @@ export const AdminEventsView = () => {
   const [serverPrevPage, setServerPrevPage] = useState<number | null>(null);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
-  const handleApprove = async (id: number, approved: boolean) => {
-    setApprovingId(id);
+  const handleApprove = async (event: XanoEvent, approved: boolean) => {
+    setApprovingId(event.id);
     try {
-      await approveEvent(id, approved, 'admin');
+      await approveEvent(event, approved, 'admin');
       setAllEvents((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, approved } : e)),
+        prev.map((e) => (e.id === event.id ? { ...e, approved } : e)),
       );
+      toast.success(approved ? 'Event approved' : 'Event revoked', approved ? 'The event is now live.' : 'The event has been unpublished.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update event status.');
+      toast.error('Failed to update event', err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setApprovingId(null);
     }
@@ -214,10 +217,17 @@ export const AdminEventsView = () => {
               <div key={event.id} className="flex items-center justify-between pb-3 border-b border-gray-50 last:border-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                    {event.image?.[0] && <img src={event.image[0]} alt={event.name} className="w-full h-full object-cover" />}
+                    {event.image?.[0] && (
+                      <img
+                        src={event.image[0]}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900 truncate max-w-[140px]">{event.name}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate max-w-[140px]">{event.name.replace(/\n/g, ' ')}</p>
                     <p className="text-xs text-gray-500">{event.category}</p>
                   </div>
                 </div>
@@ -241,7 +251,7 @@ export const AdminEventsView = () => {
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 truncate">{event.name}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate">{event.name.replace(/\n/g, ' ')}</p>
                     <p className="text-xs text-red-500 mt-1 truncate">{event.location}</p>
                   </div>
                 </div>
@@ -330,12 +340,17 @@ export const AdminEventsView = () => {
                   <tr key={event.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        {event.image?.[0] ? (
-                          <img src={event.image[0]} alt={event.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
-                        ) : (
-                          <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
-                        )}
-                        <span className="text-sm font-medium text-gray-900 max-w-[200px] truncate">{event.name}</span>
+                        <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0 overflow-hidden">
+                          {event.image?.[0] && (
+                            <img
+                              src={event.image[0]}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 max-w-[200px] truncate">{event.name.replace(/\n/g, ' ')}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">User #{event.user_id}</td>
@@ -356,7 +371,7 @@ export const AdminEventsView = () => {
                       <div className="flex items-center gap-2">
                         {!event.approved && (
                           <button
-                            onClick={() => handleApprove(event.id, true)}
+                            onClick={() => handleApprove(event, true)}
                             disabled={approvingId === event.id}
                             className="text-xs font-bold text-emerald-600 hover:text-emerald-700 border border-emerald-200 rounded px-2 py-0.5 hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -365,7 +380,7 @@ export const AdminEventsView = () => {
                         )}
                         {event.approved && (
                           <button
-                            onClick={() => handleApprove(event.id, false)}
+                            onClick={() => handleApprove(event, false)}
                             disabled={approvingId === event.id}
                             className="text-xs font-bold text-red-500 hover:text-red-600 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
