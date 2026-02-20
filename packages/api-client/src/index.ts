@@ -27,5 +27,5 @@ export { getAllLGAs } from './services/lga';
 // ============================
 // Event API services
 // ============================
-export { getEvent, getAllEvents, createEvent } from './services/event';
+export { getEvent, getAllEvents, createEvent, approveEvent } from './services/event';
 

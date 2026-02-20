@@ -90,3 +90,20 @@ export async function createEvent(
 ): Promise<XanoEvent> {
   return callXanoEndpoint('event/create', 'POST', payload, undefined, app, XANO_EVENT_BASE_URL) as Promise<XanoEvent>;
 }
+
+/**
+ * Approve or reject an event in Xano.
+ *
+ * Calls PUT /event/{id} with { approved } to update the event approval status.
+ *
+ * @param id       The event record ID.
+ * @param approved  Pass `true` to approve, `false` to reject/revoke.
+ * @param app      App context for auth token. Default: 'admin'.
+ */
+export async function approveEvent(
+  id: number,
+  approved: boolean,
+  app: AppType = 'admin',
+): Promise<XanoEvent> {
+  return callXanoEndpoint(`event/${id}`, 'PUT', { approved }, undefined, app, XANO_EVENT_BASE_URL) as Promise<XanoEvent>;
+}

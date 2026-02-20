@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { DollarSign, List, Calendar, Users, TrendingUp, TrendingDown, MoreHorizontal, ShoppingBag } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -13,6 +13,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
+import { getAllBusinesses, getAllEvents } from '@mlc/api-client';
 
 ChartJS.register(
   CategoryScale,
@@ -27,12 +28,32 @@ ChartJS.register(
 );
 
 export const AdminStatsOverview = () => {
+  // ── Live counts ─────────────────────────────────────────────────────
+  const [liveListingsCount, setLiveListingsCount] = useState<number | null>(null);
+  const [liveEventsCount, setLiveEventsCount] = useState<number | null>(null);
+  const [livePendingCount, setLivePendingCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Fetch listings count (all businesses)
+    getAllBusinesses({ page: 1, per_page: 100 }, 'admin')
+      .then((res) => {
+        setLiveListingsCount(res.items.length);
+        setLivePendingCount(res.items.filter((b) => !b.approved).length);
+      })
+      .catch(() => { /* keep null — will fallback to '…' */ });
+
+    // Fetch events count (approved events)
+    getAllEvents({ page: 1, per_page: 100 }, 'admin')
+      .then((res) => setLiveEventsCount(res.items.length))
+      .catch(() => { /* keep null */ });
+  }, []);
+
   // --- Data ---
   const summaryCards = [
-    { label: 'Total Listings', value: '3', change: '+10%', positive: true, icon: List, color: 'bg-emerald-500' },
-    { label: 'Total Events', value: '3', change: '+10%', positive: true, icon: Calendar, color: 'bg-blue-500' },
-    { label: 'Total Merchant', value: '1', change: '-10%', positive: false, icon: ShoppingBag, color: 'bg-indigo-500' }, // Assuming Naira for Lagos context
-    { label: 'Total Users', value: '2', change: '+10%', positive: true, icon: Users, color: 'bg-purple-500' },
+    { label: 'Total Listings', value: liveListingsCount !== null ? String(liveListingsCount) : '…', change: '+10%', positive: true, icon: List, color: 'bg-emerald-500' },
+    { label: 'Total Events', value: liveEventsCount !== null ? String(liveEventsCount) : '…', change: '+10%', positive: true, icon: Calendar, color: 'bg-blue-500' },
+    { label: 'Pending Listings', value: livePendingCount !== null ? String(livePendingCount) : '…', change: '-10%', positive: false, icon: ShoppingBag, color: 'bg-indigo-500' },
+    { label: 'Total Users', value: '—', change: '+10%', positive: true, icon: Users, color: 'bg-purple-500' },
   ];
 
   const orderStatusData = {
