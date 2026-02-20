@@ -217,24 +217,24 @@ export const AddBusinessPage: React.FC<AddBusinessPageProps> = ({ onBackToDashbo
         email: email.trim(),
         address: address.trim(),
         images,
-        amenities: {
-          amenities: selectedAmenities.join(', '),
-          opening_hours: JSON.stringify({
-            weekdays: weekdayOpen || 'N/A',
-            weekends: weekendOpen || 'N/A',
-          }),
-          closing_hours: JSON.stringify({
-            weekdays: weekdayClose || 'N/A',
-            weekends: weekendClose || 'N/A',
-          }),
-        },
         description: description.trim(),
         website: cleanedWebsite,
-        user_id: user?.id ? Number(user.id) : 0,
+        // Array of amenity strings as expected by /business/create
+        amenities: selectedAmenities,
+        // Hours as a plain key→value object as expected by /business/create
+        hours: {
+          weekdays_open:  weekdayOpen  || 'N/A',
+          weekdays_close: weekdayClose || 'N/A',
+          weekends_open:  weekendOpen  || 'N/A',
+          weekends_close: weekendClose || 'N/A',
+        },
+        // LGA left as empty object until backend exposes LGA lookup endpoint
+        lga: {},
+        // Note: user_id is intentionally omitted — Xano derives it from the auth token
       };
 
       console.log('[AddBusiness] Submitting payload:', payload);
-      await callXanoEndpoint('bussiness/listing', 'POST', payload);
+      await callXanoEndpoint('business/create', 'POST', payload);
 
       setSubmitSuccess(true);
       // Reset form

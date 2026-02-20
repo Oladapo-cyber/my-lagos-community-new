@@ -1,85 +1,134 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Utensils, 
-  MapPin, 
-  Phone, 
-  Share2, 
-  Heart, 
-  MessageSquare, 
-  Facebook, 
-  Instagram, 
+import {
+  Utensils,
+  MapPin,
+  Phone,
+  Share2,
+  Heart,
+  MessageSquare,
+  Facebook,
+  Instagram,
   Twitter,
   ChevronRight,
   ChevronLeft,
   Star,
   Upload,
-  Check
+  Check,
+  Loader2,
+  AlertCircle,
+  Globe,
+  Mail,
 } from 'lucide-react';
 import { ClaimBusiness } from './ClaimBusiness';
+import { getAllBusinesses } from '../utils/apiClient';
+import type { Business } from '../types';
 
-interface ListingDetailProps {
-  onBack: () => void;
-}
-
-const GALLERY_IMAGES = [
+// Fallback gallery used only when a business has no uploaded images
+const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=1200&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1490474418645-177b35242d5f?w=1200&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1574096079513-d8259312b785?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1544145945-f904253d0c7b?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1550966841-3ee3228186f7?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=1200&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=1200&auto=format&fit=crop',
 ];
 
-export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
+interface ListingDetailProps {
+  /** Numeric ID of the business to display — sourced from the URL param */
+  listingId: number;
+  onBack: () => void;
+}
+
+export const ListingDetail: React.FC<ListingDetailProps> = ({ listingId, onBack }) => {
+  // ── Business data state ──────────────────────────────────────────────────
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // ── UI state ─────────────────────────────────────────────────────────────
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
 
+  // ── Fetch business data ──────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setFetchError(null);
+
+    (async () => {
+      try {
+        /**
+         * TODO: Replace this workaround with a direct `POST /business/single { business_id }`
+         * call once the backend provides a single-business endpoint. For now we fetch
+         * a broad page and find by ID client-side.
+         */
+        const response = await getAllBusinesses({ page: 1, per_page: 100 }, 'main');
+        const found = response.items.find((b) => b.id === listingId) ?? null;
+        if (!cancelled) {
+          setBusiness(found);
+          if (!found) setFetchError('Business not found.');
+        }
+      } catch (err) {
+        if (!cancelled) setFetchError(err instanceof Error ? err.message : 'Failed to load business.');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [listingId]);
+
+  // Gallery images — real uploads or fallback
+  const galleryImages = (business?.images && business.images.length > 0)
+    ? business.images
+    : FALLBACK_IMAGES;
+
   const nextSlide = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % GALLERY_IMAGES.length);
-  }, []);
+    setCurrentIndex((prev) => (prev + 1) % galleryImages.length);
+  }, [galleryImages.length]);
 
   const prevSlide = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + GALLERY_IMAGES.length) % GALLERY_IMAGES.length);
-  }, []);
+    setCurrentIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+  }, [galleryImages.length]);
 
   // Auto-scroll every 5 seconds
   useEffect(() => {
     if (isPaused) return;
-    const interval = setInterval(() => {
-      nextSlide();
-    }, 5000);
+    const interval = setInterval(nextSlide, 5000);
     return () => clearInterval(interval);
   }, [nextSlide, isPaused]);
 
-  const AMENITIES = [
-    { name: 'Card Payment', available: true },
-    { name: 'Wheelchair Accessibility', available: true },
-    { name: 'Free Parking', available: false },
-    { name: 'Science Museum', available: true },
-    { name: 'Wi-Fi', available: true },
-    { name: 'Retail and Dining', available: true },
-    { name: 'Group Visits', available: false },
-    { name: 'Pet Friendly', available: true },
-    { name: 'Guided Tours', available: false },
-    { name: 'Reservations', available: true },
-    { name: 'Free Admission', available: true },
-  ];
+  // Derive amenity list from the real Business data
+  const AMENITIES: { name: string; available: boolean }[] = business?.amenities?.length
+    ? business.amenities.map((a) => ({ name: a, available: true }))
+    : [];
 
-  const HOURS = [
-    { day: 'Monday', time: 'Closed' },
-    { day: 'Tuesday', time: '4:00am - 10:00pm' },
-    { day: 'Wednesday', time: '4:00am - 10:00pm', current: true },
-    { day: 'Thursday', time: '4:00am - 10:00pm' },
-    { day: 'Friday', time: '4:00am - 10:00pm' },
-    { day: 'Saturday', time: '4:00am - 7:30pm' },
-    { day: 'Sunday', time: '6:30am - 7:30pm' },
-  ];
+  // Derive opening hours from the real Business data
+  const HOURS: { day: string; time: string }[] = business?.hours
+    ? Object.entries(business.hours).map(([day, time]) => ({ day, time }))
+    : [];
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+
+  // ── Loading / error screens ──────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#2563eb] animate-spin" />
+        <span className="ml-3 text-sm font-bold text-gray-500">Loading business…</span>
+      </div>
+    );
+  }
+
+  if (fetchError || !business) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <AlertCircle className="w-12 h-12 text-red-400" />
+        <p className="text-sm font-bold text-gray-600">{fetchError ?? 'Business not found.'}</p>
+        <button onClick={onBack} className="text-blue-600 hover:underline text-sm font-bold">
+          ← Back to Listings
+        </button>
+      </div>
+    );
+  }
 
   if (isClaiming) {
     return <ClaimBusiness onBack={() => setIsClaiming(false)} />;
@@ -97,7 +146,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
           className="flex h-full transition-transform duration-1000 ease-in-out"
           style={{ transform: `translateX(-${currentIndex * (100 / (window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1))}%)` }}
         >
-          {GALLERY_IMAGES.map((img, idx) => (
+          {galleryImages.map((img, idx) => (
             <div 
               key={idx} 
               className="min-w-full md:min-w-[50%] lg:min-w-[33.333%] h-full border-r border-white/10 relative overflow-hidden"
@@ -128,7 +177,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
 
         {/* Carousel Indicator Dots */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
-          {GALLERY_IMAGES.map((_, idx) => (
+          {galleryImages.map((_, idx) => (
             <div 
               key={idx} 
               className={`h-1.5 transition-all duration-300 rounded-full ${currentIndex === idx ? 'w-8 bg-blue-500' : 'w-2 bg-white/40'}`}
@@ -146,20 +195,26 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
             {/* Header Info */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
               <div>
-                <h1 className="text-5xl font-extrabold text-[#111] mb-6 tracking-tight">Oshey's Cafe & Bar</h1>
+                <h1 className="text-5xl font-extrabold text-[#111] mb-6 tracking-tight">{business.name}</h1>
                 <div className="flex flex-wrap items-center gap-6">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                    <Utensils className="w-4 h-4" />
-                    <span>Bar & Cafe</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                    <MapPin className="w-4 h-4" />
-                    <span>1, Real Address, Lagos, Nigeria</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                    <Phone className="w-4 h-4" />
-                    <span>08012345678</span>
-                  </div>
+                  {business.category && (
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                      <Utensils className="w-4 h-4" />
+                      <span>{business.category}</span>
+                    </div>
+                  )}
+                  {business.address && (
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                      <MapPin className="w-4 h-4" />
+                      <span>{business.address}</span>
+                    </div>
+                  )}
+                  {business.phoneNumber && (
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                      <Phone className="w-4 h-4" />
+                      <span>{business.phoneNumber}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -178,62 +233,75 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
 
             {/* About Section */}
             <div className="mb-16">
-              <h2 className="text-2xl font-black text-[#111] mb-6">About Oshey's</h2>
-              <p className="text-sm font-medium text-gray-500 leading-relaxed mb-4">
-                Listing Description...Ut euismod ultricies sollicitudin. Curabitur sed dapibus nulla. Nulla eget iaculis lectus. Mauris ac maximus neque. Nam in mauris quis libero sodales eleifend. Morbi varius, nulla sit amet rutrum elementum, est elit finibus tellus, ut tristique elit risus at metus. 
-              </p>
-              <p className="text-sm font-medium text-gray-500 leading-relaxed">
-                Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis Theme natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus.
-              </p>
+              <h2 className="text-2xl font-black text-[#111] mb-6">About {business.name}</h2>
+              {business.description ? (
+                <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                  {business.description}
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-gray-400 italic">No description provided.</p>
+              )}
             </div>
 
             {/* Amenities */}
-            <div className="mb-16">
-              <h2 className="text-2xl font-black text-[#111] mb-8">Available Amenities</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-12">
-                {AMENITIES.map((item, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${item.available ? 'bg-blue-600 border-blue-600' : 'border-gray-200'}`}>
-                      {item.available && <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />}
+            {AMENITIES.length > 0 && (
+              <div className="mb-16">
+                <h2 className="text-2xl font-black text-[#111] mb-8">Available Amenities</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-12">
+                  {AMENITIES.map((item, i) => (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="w-5 h-5 rounded flex items-center justify-center border bg-blue-600 border-blue-600">
+                        <Check className="w-3.5 h-3.5 text-white stroke-[3px]" />
+                      </div>
+                      <span className="text-xs font-bold text-gray-600">{item.name}</span>
                     </div>
-                    <span className="text-xs font-bold text-gray-600">{item.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div className="mb-16">
-              <h2 className="text-2xl font-black text-[#111] mb-6">Tags</h2>
-              <div className="flex flex-wrap gap-4">
-                {['Music', 'Bar', 'Cafe'].map((tag) => (
-                  <span key={tag} className="bg-gray-100 px-6 py-2 rounded-lg text-xs font-bold text-gray-600">{tag}</span>
-                ))}
-              </div>
-            </div>
-
-            {/* Gallery Grid */}
-            <div className="mb-20">
-              <h2 className="text-2xl font-black text-[#111] mb-8">Photo & Video Gallery</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="aspect-[4/5] rounded-xl overflow-hidden shadow-lg group">
-                  <img src="https://images.unsplash.com/photo-1559339352-11d035aa65de?w=800&auto=format&fit=crop" className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery Large" />
-                </div>
-                <div className="flex flex-col gap-6">
-                  <div className="aspect-[16/10] rounded-xl overflow-hidden shadow-lg group">
-                    <img src="https://images.unsplash.com/photo-1574096079513-d8259312b785?w=800&auto=format&fit=crop" className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery Med 1" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="aspect-square rounded-xl overflow-hidden shadow-lg group">
-                      <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&auto=format&fit=crop" className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery Small 1" />
-                    </div>
-                    <div className="aspect-square rounded-xl overflow-hidden shadow-lg group">
-                      <img src="https://images.unsplash.com/photo-1544145945-f904253d0c7b?w=400&auto=format&fit=crop" className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery Small 2" />
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Tags — show category as a tag */}
+            {business.category && (
+              <div className="mb-16">
+                <h2 className="text-2xl font-black text-[#111] mb-6">Tags</h2>
+                <div className="flex flex-wrap gap-4">
+                  <span className="bg-gray-100 px-6 py-2 rounded-lg text-xs font-bold text-gray-600">
+                    {business.category}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Photo Gallery — uses real Cloudinary images */}
+            {galleryImages.length > 0 && (
+              <div className="mb-20">
+                <h2 className="text-2xl font-black text-[#111] mb-8">Photo & Video Gallery</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="aspect-[4/5] rounded-xl overflow-hidden shadow-lg group">
+                    <img src={galleryImages[0]} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery 1" />
+                  </div>
+                  <div className="flex flex-col gap-6">
+                    {galleryImages[1] && (
+                      <div className="aspect-[16/10] rounded-xl overflow-hidden shadow-lg group">
+                        <img src={galleryImages[1]} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery 2" />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-6">
+                      {galleryImages[2] && (
+                        <div className="aspect-square rounded-xl overflow-hidden shadow-lg group">
+                          <img src={galleryImages[2]} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery 3" />
+                        </div>
+                      )}
+                      {galleryImages[3] && (
+                        <div className="aspect-square rounded-xl overflow-hidden shadow-lg group">
+                          <img src={galleryImages[3]} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" alt="Gallery 4" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Reviews Section */}
             <div className="bg-[#fcfcfc] border border-gray-100 rounded-2xl p-10">
@@ -330,12 +398,32 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
             <div className="bg-[#fcfcfc] border border-gray-100 rounded-2xl p-10">
               <h3 className="text-xl font-black text-[#111] mb-8">Contact Information</h3>
               <div className="space-y-8">
-                <div className="text-sm font-bold text-gray-500 leading-relaxed">
-                  #1, Sample Address, Location, Lagos
-                </div>
-                <div className="text-sm font-black text-[#111]">0903456532</div>
-                <div className="text-sm font-bold text-gray-500">info@email.com</div>
-                <div className="text-sm font-bold text-blue-600 underline">https://www.mylagoscommunity.com</div>
+                {business.address && (
+                  <div className="flex items-start gap-2 text-sm font-bold text-gray-500 leading-relaxed">
+                    <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span>{business.address}</span>
+                  </div>
+                )}
+                {business.phoneNumber && (
+                  <div className="flex items-center gap-2 text-sm font-black text-[#111]">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <span>{business.phoneNumber}</span>
+                  </div>
+                )}
+                {business.email && (
+                  <div className="flex items-center gap-2 text-sm font-bold text-gray-500">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span>{business.email}</span>
+                  </div>
+                )}
+                {business.website && (
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-blue-600" />
+                    <a href={business.website} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-blue-600 underline truncate">
+                      {business.website}
+                    </a>
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
                   <button className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all">
@@ -352,17 +440,24 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ onBack }) => {
             </div>
 
             {/* Business Hours */}
-            <div className="bg-[#fcfcfc] border border-gray-100 rounded-2xl p-10">
-              <h3 className="text-xl font-black text-[#111] mb-8">Business Hours</h3>
-              <div className="space-y-4">
-                {HOURS.map((h, i) => (
-                  <div key={i} className={`flex items-center justify-between text-xs font-bold ${h.current ? 'text-blue-600' : 'text-gray-500'}`}>
-                    <span>{h.day}</span>
-                    <span>{h.time}</span>
-                  </div>
-                ))}
+            {HOURS.length > 0 && (
+              <div className="bg-[#fcfcfc] border border-gray-100 rounded-2xl p-10">
+                <h3 className="text-xl font-black text-[#111] mb-8">Business Hours</h3>
+                <div className="space-y-4">
+                  {HOURS.map((h, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-between text-xs font-bold ${
+                        h.day === today ? 'text-blue-600' : 'text-gray-500'
+                      }`}
+                    >
+                      <span>{h.day}</span>
+                      <span>{h.time}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Price Range */}
             <div className="bg-[#fcfcfc] border border-gray-100 rounded-2xl p-10">

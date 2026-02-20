@@ -1,18 +1,67 @@
-import React, { useState } from 'react';
-import { List, FolderOpen, Eye, Star, Search, Calendar, Grid3x3, List as ListIcon, MoreVertical, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { List, FolderOpen, Eye, Star, Search, Calendar, Grid3x3, List as ListIcon, MoreVertical, FileText, Loader2, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
+import { getAllBusinesses, approveBusiness } from '@mlc/api-client';
+import type { Business } from '@mlc/shared-types';
 
 export const AdminListingsView = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Summary cards data
+  // ── Real API state ──────────────────────────────────────────────────────
+  const [allListings, setAllListings] = useState<Business[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [serverNextPage, setServerNextPage] = useState<number | null>(null);
+  const [serverPrevPage, setServerPrevPage] = useState<number | null>(null);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+
+  const handleApprove = async (id: number, approved: boolean) => {
+    setApprovingId(id);
+    try {
+      await approveBusiness(id, approved, 'admin');
+      setAllListings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, approved } : b)),
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update listing status.');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setFetchError(null);
+
+    getAllBusinesses({ page: currentPage, per_page: itemsPerPage }, 'admin')
+      .then((res) => {
+        if (!cancelled) {
+          setAllListings(res.items);
+          setServerNextPage(res.nextPage);
+          setServerPrevPage(res.prevPage);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setFetchError(err instanceof Error ? err.message : 'Failed to load listings.');
+      })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [currentPage]);
+
+  // Derived stats from currently loaded page
+  const approvedCount = allListings.filter((b) => b.approved).length;
+  const pendingCount  = allListings.filter((b) => !b.approved).length;
+
+  // Summary cards — values derived from live API data
   const summaryCards = [
-    { label: 'Published Listings', value: '10000', change: '+10%', positive: true, icon: List, color: 'bg-blue-500' },
-    { label: 'Total Categories', value: '10000', change: '+10%', positive: true, icon: FolderOpen, color: 'bg-emerald-500' },
-    { label: 'Total Views', value: '10000', change: '+10%', positive: true, icon: Eye, color: 'bg-amber-500' },
-    { label: 'Total Reviews', value: '10000', change: '+10%', positive: true, icon: Star, color: 'bg-red-500' },
+    { label: 'Published Listings', value: String(approvedCount), change: '+10%', positive: true, icon: List, color: 'bg-blue-500' },
+    { label: 'Total Categories', value: String(new Set(allListings.map((b) => b.category)).size), change: '', positive: true, icon: FolderOpen, color: 'bg-emerald-500' },
+    { label: 'Pending Approval', value: String(pendingCount), change: '', positive: false, icon: Eye, color: 'bg-amber-500' },
+    { label: 'Total on Page', value: String(allListings.length), change: '+10%', positive: true, icon: Star, color: 'bg-red-500' },
   ];
 
   // Chart data
@@ -57,150 +106,48 @@ export const AdminListingsView = () => {
     },
   };
 
-  // Latest listings
-  const latestListings = [
-    { id: 1, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 2, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 3, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 4, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 5, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-  ];
+  // Latest listings sidebar — first 5 from API
+  const latestListings = allListings.slice(0, 5).map((b) => ({
+    id: b.id,
+    name: b.name,
+    location: b.address,
+    image: b.images?.[0] ?? '',
+  }));
 
-  // Popular listings
-  const popularListings = [
-    { id: 1, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 2, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 3, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 4, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-    { id: 5, name: 'Listing Name', location: 'EH Suites Address, Location, Lagos', image: '' },
-  ];
+  // Popular listings sidebar — show approved ones first (proxy for popularity)
+  const popularListings = [...allListings]
+    .sort((a, b) => Number(b.approved) - Number(a.approved))
+    .slice(0, 5)
+    .map((b) => ({
+      id: b.id,
+      name: b.name,
+      location: b.address,
+      image: b.images?.[0] ?? '',
+    }));
 
-  // All listings table data
-  const allListings = [
-    {
-      id: 1,
-      name: 'Luxury Restaurant',
-      owner: 'My Lagos Community',
-      category: 'Restaurant',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Deactivated',
-    },
-    {
-      id: 2,
-      name: "Oshey's Cafe & Bar",
-      owner: 'Desmond Oslade',
-      category: 'Bar & Restaurant',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Active',
-    },
-    {
-      id: 3,
-      name: 'Hotel Shovorider',
-      owner: 'Desmond Oslade',
-      category: 'Hotel',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Deactivated',
-    },
-    {
-      id: 4,
-      name: 'Favorite Place Food Bank',
-      owner: 'John Michael',
-      category: 'Restaurant',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Active',
-    },
-    {
-      id: 5,
-      name: 'Beach Blue Beachbulk',
-      owner: 'Imani Johnson',
-      category: 'Restaurant',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Active',
-    },
-    {
-      id: 6,
-      name: 'Lagos Community Meet & Greet',
-      owner: 'Imani Johnson',
-      category: 'Nightlife',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Deactivated',
-    },
-    {
-      id: 7,
-      name: 'Favorite Place Food Bank',
-      owner: 'Thomas Williams',
-      category: 'Bar & Restaurant',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Deactivated',
-    },
-    {
-      id: 8,
-      name: "Oshey's Cafe & Bar",
-      owner: 'Imani Johnson',
-      category: 'Cafe',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Active',
-    },
-    {
-      id: 9,
-      name: 'Lagos Community Meet & Greet',
-      owner: 'Desmond Luolu',
-      category: 'Bar & Restaurant',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Active',
-    },
-    {
-      id: 10,
-      name: "Nka's Art Gallery",
-      owner: 'Michael John',
-      category: 'Art & Culture',
-      publishedOn: 'Oct 15, 2022 10:00am',
-      email: 'sampleemail@gmail.com',
-      phone: '+234(0)1 2345 678',
-      status: 'Active',
-    },
-  ];
-
-  const filteredListings = allListings.filter(listing =>
+  // Client-side keyword filter on the server-returned page
+  const filteredListings = allListings.filter((listing) =>
     listing.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    listing.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    listing.category.toLowerCase().includes(searchQuery.toLowerCase())
+    listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    listing.address.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  const totalPages = Math.ceil(filteredListings.length / itemsPerPage);
-  const paginatedListings = filteredListings.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Pagination is server-driven; client filtering is over the current page only
+  const totalPages = serverNextPage !== null ? currentPage + 1 : currentPage;
+  const paginatedListings = filteredListings; // server already returns the right page
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-emerald-100 text-emerald-700';
-      case 'Deactivated':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
+  const getStatusStyle = (approved: boolean) => {
+    return approved
+      ? 'bg-emerald-100 text-emerald-700'
+      : 'bg-amber-100 text-amber-700';
   };
+
+  /** Format a Xano unix-ms timestamp to a readable date string */
+  const formatDate = (ts: number) =>
+    new Date(ts).toLocaleString('en-NG', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
 
   return (
     <div className="space-y-6">
@@ -317,7 +264,7 @@ export const AdminListingsView = () => {
         </div>
       </div>
 
-      {/* All Listings Table */}
+        {/* All Listings Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center justify-between mb-4">
@@ -375,11 +322,28 @@ export const AdminListingsView = () => {
 
         {/* Table */}
         <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+              <span className="ml-2 text-sm font-medium text-gray-500">Loading…</span>
+            </div>
+          ) : fetchError ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <AlertCircle className="w-8 h-8 text-red-400" />
+              <p className="text-sm font-medium text-gray-500">{fetchError}</p>
+              <button
+                onClick={() => setCurrentPage((p) => p)}
+                className="text-xs font-bold text-blue-600 hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Listing Name</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Owner name</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Owner ID</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Published On</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
@@ -391,48 +355,79 @@ export const AdminListingsView = () => {
             <tbody className="bg-white divide-y divide-gray-100">
               {paginatedListings.map((listing) => (
                 <tr key={listing.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{listing.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{listing.owner}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{listing.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{listing.publishedOn}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 underline">{listing.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{listing.phone}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusStyle(listing.status)}`}>
-                      {listing.status}
+                    <div className="flex items-center gap-3">
+                      {listing.images?.[0] ? (
+                        <img src={listing.images[0]} alt={listing.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-gray-100 flex-shrink-0" />
+                      )}
+                      <span className="text-sm font-medium text-gray-900">{listing.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">User #{listing.user_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{listing.category}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDate(listing.created_at)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 underline">{listing.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{listing.phoneNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusStyle(listing.approved)}`}>
+                      {listing.approved ? 'Active' : 'Pending'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                    <button className="hover:text-gray-600">
-                      <MoreVertical size={16} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {!listing.approved && (
+                        <button
+                          onClick={() => handleApprove(listing.id, true)}
+                          disabled={approvingId === listing.id}
+                          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 border border-emerald-200 rounded px-2 py-0.5 hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Approve this listing"
+                        >
+                          {approvingId === listing.id ? 'Approving…' : 'Approve'}
+                        </button>
+                      )}
+                      {listing.approved && (
+                        <button
+                          onClick={() => handleApprove(listing.id, false)}
+                          disabled={approvingId === listing.id}
+                          className="text-xs font-bold text-red-500 hover:text-red-600 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Revoke approval"
+                        >
+                          {approvingId === listing.id ? 'Revoking…' : 'Revoke'}
+                        </button>
+                      )}
+                      <button className="hover:text-gray-600"><MoreVertical size={16} /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* Pagination */}
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredListings.length)} of {filteredListings.length} Results
+            Page {currentPage} &middot; {filteredListings.length} result{filteredListings.length !== 1 ? 's' : ''} on this page
           </p>
-          <div className="flex gap-2">
-            {[...Array(totalPages > 5 ? 5 : totalPages)].map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentPage(idx + 1)}
-                className={`w-8 h-8 rounded ${
-                  currentPage === idx + 1
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {idx + 1}
-              </button>
-            ))}
-            <button className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900">»</button>
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={serverPrevPage === null}
+              className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded disabled:opacity-40 hover:bg-gray-200"
+            >
+              &laquo;
+            </button>
+            <span className="px-3 py-1 text-sm bg-blue-600 text-white rounded">{currentPage}</span>
+            <button
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={serverNextPage === null}
+              className="px-3 py-1 text-sm text-gray-600 bg-gray-100 rounded disabled:opacity-40 hover:bg-gray-200"
+            >
+              &raquo;
+            </button>
           </div>
         </div>
       </div>

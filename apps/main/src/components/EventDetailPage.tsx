@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Calendar, 
-  MapPin, 
-  Facebook, 
-  Twitter, 
-  Instagram, 
+import {
+  Calendar,
+  MapPin,
+  Facebook,
+  Twitter,
+  Instagram,
   ArrowRight,
   Heart,
-  BarChart2
+  BarChart2,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { EVENTS_DATA } from '../data/eventsData';
+import { getEvent } from '../utils/apiClient';
+import type { XanoEvent } from '../types';
 
 interface EventDetailPageProps {
   eventId: number;
@@ -19,41 +23,111 @@ interface EventDetailPageProps {
 }
 
 export const EventDetailPage: React.FC<EventDetailPageProps> = ({ eventId, onBack, onEventClick }) => {
-  const event = EVENTS_DATA.find(e => e.id === eventId);
+  const [event, setEvent] = useState<(XanoEvent & Record<string, any>) | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [ticketCount, setTicketCount] = useState(1);
   const navigate = useNavigate();
+
+  // Fetch event from Xano
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setFetchError(null);
+
+    getEvent(eventId, 'main')
+      .then((data) => { if (!cancelled) setEvent(data); })
+      .catch((err) => {
+        if (!cancelled) {
+          // Graceful fallback: try dummy data for dev/offline scenarios
+          const fallback = EVENTS_DATA.find((e) => e.id === eventId);
+          if (fallback) {
+            // Cast the local dummy type to the flexible event shape
+            setEvent(fallback as unknown as (XanoEvent & Record<string, any>));
+          } else {
+            setFetchError(err instanceof Error ? err.message : 'Failed to load event.');
+          }
+        }
+      })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [eventId]);
   
   // Design assets from instructions
   const HERO_IMAGE = "https://communitycra.vercel.app/static/media/eventbanner.8f131c5d46adc1b3ffcc.png";
   const EVENTS_IMAGE = "https://communitycra.vercel.app/static/media/abtevent.a9e2c54e4af4505034a7.png";
 
-  if (!event) {
+  // Loading state
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Event not found</h2>
-          <button onClick={onBack} className="text-blue-600 hover:underline">Back to Events</button>
-        </div>
+        <Loader2 className="w-8 h-8 text-[#2563eb] animate-spin" />
+        <span className="ml-3 text-sm font-bold text-gray-500">Loading event…</span>
       </div>
     );
   }
 
-  // Find related events
+  // Error / not-found state
+  if (fetchError || !event) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <AlertCircle className="w-12 h-12 text-red-400" />
+        <p className="text-sm font-bold text-gray-600">{fetchError ?? 'Event not found.'}</p>
+        <button onClick={onBack} className="text-blue-600 hover:underline text-sm font-bold">
+          ← Back to Events
+        </button>
+      </div>
+    );
+  }
+
+  /**
+   * TODO: Replace with real related events once GET /events/all endpoint is available.
+   * Using static dummy data as a fallback in the meantime.
+   */
   const relatedEvents = EVENTS_DATA
-    .filter(e => e.id !== event.id)
+    .filter((e) => e.id !== eventId)
     .slice(0, 4);
 
-  // Helper to parse date string "15 Feb, 2026"
-  const getDateParts = (dateStr: string) => {
+  // Helper to parse date string "2025-09-18" or fallback "15 Feb, 2026"
+  const getDateParts = (dateStr: string | undefined) => {
+    if (!dateStr) {
+      return {
+        day: '15',
+        month: 'FEB',
+        year: new Date().getFullYear().toString()
+      };
+    }
+
+    // Handle ISO format "2025-09-18"
+    if (dateStr.includes('-')) {
+      const [year, month, day] = dateStr.split('-');
+      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      return {
+        day: day || '15',
+        month: monthNames[parseInt(month) - 1] || 'FEB',
+        year: year || '2026'
+      };
+    }
+
+    // Handle format "15 Feb, 2026"
     const parts = dateStr.split(' ');
     return {
       day: parts[0] || '15',
-      month: parts[1]?.replace(',', '') || 'OCT',
+      month: parts[1]?.replace(',', '').toUpperCase() || 'FEB',
       year: parts[2] || '2026'
     };
   };
 
-  const dateParts = getDateParts(event.date);
+  const dateParts = getDateParts(event?.time_end ?? (event as any)?.date);
+
+  // Provide safe defaults for properties that may not exist in XanoEvent
+  const eventData = {
+    location: event.address || (event as any).location || 'Lagos, Nigeria',
+    time: (event as any).time || new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }),
+    date: (event as any).date || dateParts.month + ' ' + dateParts.day + ', ' + dateParts.year,
+    ticketPrices: (event as any).ticketPrices || { regular: 0, gold: 0, vip: 0, platinum: 0 },
+  };
 
   return (
     <div className="bg-white min-h-screen font-sans text-black">
@@ -93,24 +167,24 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({ eventId, onBac
                         </div>
 
                         {/* Event Title/Venue */}
-                        <h3 className="font-bold text-xs text-black uppercase mb-1 leading-relaxed tracking-wide">{event.location}</h3>
-                        <p className="text-[#FF4500] font-bold text-xl mb-6">{event.time}</p>
+                        <h3 className="font-bold text-xs text-black uppercase mb-1 leading-relaxed tracking-wide">{eventData.location}</h3>
+                        <p className="text-[#FF4500] font-bold text-xl mb-6">{eventData.time}</p>
 
                         {/* Pricing Table */}
                         <div className="mb-6">
                             <h4 className="font-bold text-[10px] text-gray-500 uppercase mb-2">PRICE/ TICKET</h4>
                             <div className="grid grid-cols-2 gap-3 text-[10px]">
                                 <div className="border border-dashed border-gray-400 p-2">
-                                    <span className="block text-black font-bold">REGULAR | <span className="text-[#FF4500]">{event.ticketPrices.regular === 0 ? 'FREE' : event.ticketPrices.regular.toLocaleString('en-NG')}</span></span>
+                                    <span className="block text-black font-bold">REGULAR | <span className="text-[#FF4500]">{eventData.ticketPrices.regular === 0 ? 'FREE' : eventData.ticketPrices.regular.toLocaleString('en-NG')}</span></span>
                                 </div>
                                 <div className="border border-dashed border-gray-400 p-2">
-                                    <span className="block text-black font-bold">GOLD | <span className="text-[#FF4500]">{event.ticketPrices.gold === 0 ? 'FREE' : event.ticketPrices.gold.toLocaleString('en-NG')}</span></span>
+                                    <span className="block text-black font-bold">GOLD | <span className="text-[#FF4500]">{eventData.ticketPrices.gold === 0 ? 'FREE' : eventData.ticketPrices.gold.toLocaleString('en-NG')}</span></span>
                                 </div>
                                 <div className="border border-dashed border-gray-400 p-2">
-                                    <span className="block text-black font-bold">VIP | <span className="text-[#FF4500]">{event.ticketPrices.vip === 0 ? 'FREE' : event.ticketPrices.vip.toLocaleString('en-NG')}</span></span>
+                                    <span className="block text-black font-bold">VIP | <span className="text-[#FF4500]">{eventData.ticketPrices.vip === 0 ? 'FREE' : eventData.ticketPrices.vip.toLocaleString('en-NG')}</span></span>
                                 </div>
                                 <div className="border border-dashed border-gray-400 p-2">
-                                    <span className="block text-black font-bold">PLATINUM | <span className="text-[#FF4500]">{event.ticketPrices.platinum === 0 ? 'FREE' : event.ticketPrices.platinum.toLocaleString('en-NG')}</span></span>
+                                    <span className="block text-black font-bold">PLATINUM | <span className="text-[#FF4500]">{eventData.ticketPrices.platinum === 0 ? 'FREE' : eventData.ticketPrices.platinum.toLocaleString('en-NG')}</span></span>
                                 </div>
                             </div>
                         </div>
@@ -118,7 +192,7 @@ export const EventDetailPage: React.FC<EventDetailPageProps> = ({ eventId, onBac
                         {/* Deadline */}
                         <div className="mb-8 border-t border-dotted border-gray-300 pt-4">
                             <h4 className="font-bold text-[10px] text-black uppercase mb-1">REGISTRATION DEADLINE</h4>
-                            <p className="text-[#FF4500] font-bold text-lg">{event.date}</p>
+                            <p className="text-[#FF4500] font-bold text-lg">{eventData.date}</p>
                         </div>
 
                         {/* Action */}

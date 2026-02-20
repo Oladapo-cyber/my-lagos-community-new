@@ -16,6 +16,7 @@ import { ListingDetail } from './components/ListingDetail';
 import { ContactPage } from './components/ContactPage';
 import { EventsPage } from './components/EventsPage';
 import { AddBusinessPage } from './components/AddBusinessPage';
+import { AddEventPage } from './components/AddEventPage';
 import { ShopPage } from './components/ShopPage';
 import { ProductDetail } from './components/ProductDetail';
 import { EventDetailPage } from './components/EventDetailPage';
@@ -52,13 +53,16 @@ const EventDetailWrapper: React.FC<{ onEventClick: (id: number) => void }> = ({ 
 const ListingDetailWrapper: React.FC = () => {
   const { listingId } = useParams<{ listingId: string }>();
   const navigate = useNavigate();
-  
+
   if (!listingId || isNaN(Number(listingId))) {
     return <Navigate to="/listings" replace />;
   }
-  
+
   return (
-    <ListingDetail onBack={() => navigate('/listings')} />
+    <ListingDetail
+      listingId={Number(listingId)}
+      onBack={() => navigate('/listings')}
+    />
   );
 };
 
@@ -157,6 +161,7 @@ const App: React.FC = () => {
           <Route path="/events/:eventId/registration" element={<EventRegistration />} />
           <Route path="/events/:eventId/checkout" element={<Checkout />} />
           <Route path="/add-business" element={<AddBusinessPage onBackToDashboard={() => navigate('/dashboard')} />} />
+          <Route path="/add-event" element={<AddEventPage onBackToDashboard={() => navigate('/dashboard')} />} />
           <Route path="/shop" element={<ShopPage onProductClick={handleProductClick} />} />
           <Route path="/shop/:productId" element={<ProductDetailWrapper onProductClick={handleProductClick} />} />
 
