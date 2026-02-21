@@ -24,12 +24,15 @@ import {
   Dog,
   Wrench,
   ShoppingCart,
-  Pill
+  Pill,
+  Loader2
 } from 'lucide-react';
+import type { Product } from '@mlc/shared-types';
+import { getAllProducts } from '../utils/apiClient';
 
 // Sidebar categories
 const SIDEBAR_CATEGORIES = [
-  { icon: ShoppingCart, label: 'Supermarket' },
+  { icon: ShoppingCart, label: 'All' },
   { icon: Sparkles, label: 'Supermarket' },
   { icon: Pill, label: 'Health' },
   { icon: Scissors, label: 'Beauty' },
@@ -42,7 +45,7 @@ const SIDEBAR_CATEGORIES = [
   { icon: MoreHorizontal, label: 'Other Categories' },
 ];
 
-// Shop by Category cards
+// Shop by Category cards (visual only – these are decorative category tiles)
 const CATEGORY_CARDS = [
   { title: 'Gaming Accessories', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop' },
   { title: 'Ankara Shoes', img: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop' },
@@ -54,33 +57,13 @@ const CATEGORY_CARDS = [
   { title: 'Computer Accessories', img: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop' },
 ];
 
-// New Arrivals products
-const NEW_ARRIVALS = [
-  { id: 1, name: 'Stone Wash Denim Shorts', price: '₦20,000', discountPrice: '₦14,000', img: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=400&auto=format&fit=crop', discount: '30%' },
-  { id: 2, name: 'Stone Wash Denim Shorts', price: '₦18,000', discountPrice: '', img: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&auto=format&fit=crop', discount: '' },
-  { id: 3, name: 'Stone Wash Denim Shorts', price: '₦22,000', discountPrice: '₦18,200', img: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop', discount: '17%' },
-  { id: 4, name: 'Stone Wash Denim Shorts', price: '₦20,000', discountPrice: '₦14,000', img: 'https://images.unsplash.com/photo-1524275539700-fb511b8ba3d1?w=400&auto=format&fit=crop', discount: '30%' },
-];
+/** Format a number as ₦X,XXX */
+function formatPrice(price: number): string {
+  return `₦${price.toLocaleString()}`;
+}
 
-// Deals of the week products
-const DEALS_PRODUCTS = [
-  { id: 10, name: 'Stone Wash Denim Shorts', price: '₦25,000', discountPrice: '', img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop', discount: '' },
-  { id: 11, name: 'Stone Wash Denim Shorts', price: '₦18,000', discountPrice: '₦15,400', img: 'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=400&auto=format&fit=crop', discount: '15%' },
-  { id: 12, name: 'Stone Wash Denim Shorts', price: '₦22,000', discountPrice: '₦18,200', img: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop', discount: '17%' },
-  { id: 13, name: 'Stone Wash Denim Shorts', price: '₦15,000', discountPrice: '', img: 'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=400&auto=format&fit=crop', discount: '' },
-];
-
-// Trending Items
-const TRENDING_ITEMS = [
-  { id: 20, name: 'Stone Wash Denim Shorts', price: '₦20,000', discountPrice: '₦14,000', img: 'https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=400&auto=format&fit=crop', discount: '30%' },
-  { id: 21, name: 'Stone Wash Denim Shorts', price: '₦18,000', discountPrice: '₦15,400', img: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&auto=format&fit=crop', discount: '15%' },
-  { id: 22, name: 'Stone Wash Denim Shorts', price: '₦25,700', discountPrice: '', img: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=400&auto=format&fit=crop', discount: '' },
-  { id: 23, name: 'Stone Wash Denim Shorts', price: '₦20,000', discountPrice: '₦14,000', img: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&auto=format&fit=crop', discount: '30%' },
-  { id: 24, name: 'Stone Wash Denim Shorts', price: '₦20,000', discountPrice: '₦14,000', img: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop', discount: '30%' },
-  { id: 25, name: 'Stone Wash Denim Shorts', price: '₦18,000', discountPrice: '₦15,400', img: 'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=400&auto=format&fit=crop', discount: '15%' },
-  { id: 26, name: 'Stone Wash Denim Shorts', price: '₦22,500', discountPrice: '₦18,200', img: 'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=400&auto=format&fit=crop', discount: '19%' },
-  { id: 27, name: 'Stone Wash Denim Shorts', price: '₦20,000', discountPrice: '₦14,000', img: 'https://images.unsplash.com/photo-1524275539700-fb511b8ba3d1?w=400&auto=format&fit=crop', discount: '30%' },
-];
+/** Placeholder image when product has no images */
+const PLACEHOLDER_IMG = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop';
 
 interface ShopPageProps {
   onProductClick: (id: number) => void;
@@ -123,31 +106,25 @@ const CountdownTimer: React.FC = () => {
   );
 };
 
-// Product Card Component
-function ProductCard({ name, price, discountPrice, img, discount, onClick }: any) {
+// Product Card Component – works with real Product data
+function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
+  const img = product.image?.[0] || PLACEHOLDER_IMG;
   return (
     <div onClick={onClick} className="bg-white rounded-xl overflow-hidden group cursor-pointer border border-gray-100 hover:shadow-lg transition-all">
       <div className="relative h-48 bg-gray-50 overflow-hidden">
-        <img src={img} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        {discount && (
-          <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-black px-2 py-1 rounded-md">{discount}</span>
-        )}
+        <img src={img} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50">
           <Heart className="w-4 h-4 text-gray-400 hover:text-red-500" />
         </button>
       </div>
       <div className="p-4">
-        <h3 className="font-bold text-sm text-gray-800 mb-2 truncate">{name}</h3>
+        <h3 className="font-bold text-sm text-gray-800 mb-2 truncate">{product.name}</h3>
         <div className="flex items-center gap-2">
-          {discountPrice ? (
-            <>
-              <span className="text-xs text-gray-400 line-through">{price}</span>
-              <span className="text-sm font-black text-red-500">{discountPrice}</span>
-            </>
-          ) : (
-            <span className="text-sm font-black text-gray-800">{price}</span>
-          )}
+          <span className="text-sm font-black text-gray-800">{formatPrice(product.price)}</span>
         </div>
+        {product.category && (
+          <span className="text-[10px] text-gray-400 font-medium">{product.category}</span>
+        )}
       </div>
     </div>
   );
@@ -156,7 +133,46 @@ function ProductCard({ name, price, discountPrice, img, discount, onClick }: any
 export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
   const [bannerIndex, setBannerIndex] = useState(0);
   const [activeDot, setActiveDot] = useState(0);
-  const [activeCategory, setActiveCategory] = useState('Supermarket');
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // ---- Real product data from API ----
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await getAllProducts();
+        const products: Product[] = Array.isArray(response) ? response : (response as any)?.items ?? [];
+        if (!cancelled) setAllProducts(products);
+      } catch (err) {
+        console.error('[ShopPage] Failed to load products:', err);
+        if (!cancelled) setError('Failed to load products. Please try again.');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Filter by sidebar category + search query
+  const filteredProducts = allProducts.filter(p => {
+    const matchesCategory = activeCategory === 'All' || p.category?.toLowerCase() === activeCategory.toLowerCase();
+    const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.tag?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCategory && matchesSearch;
+  });
+
+  // Slice products into different sections for visual variety
+  // Sort newest first (highest created_at)
+  const sorted = [...filteredProducts].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+  const newArrivals = sorted.slice(0, 4);
+  const dealsProducts = sorted.slice(4, 8);
+  const trendingItems = sorted.slice(0, 8); // show all up to 8
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -189,6 +205,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
               <input 
                 type="text" 
                 placeholder="Type a keyword to search..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-4 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-[#f97316]/30 focus:border-[#f97316] transition-all"
               />
             </div>
@@ -283,11 +301,27 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-            {NEW_ARRIVALS.map((p) => (
-              <ProductCard key={p.id} {...p} onClick={() => onProductClick(p.id)} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="w-8 h-8 text-[#f97316] animate-spin" />
+                <p className="text-sm font-bold text-gray-400">Loading products...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="text-sm font-bold text-red-400 mb-3">{error}</p>
+              <button onClick={() => window.location.reload()} className="text-sm font-bold text-[#f97316] hover:underline">Retry</button>
+            </div>
+          ) : newArrivals.length === 0 ? (
+            <p className="text-center py-12 text-sm font-medium text-gray-400">No products found.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+              {newArrivals.map((p) => (
+                <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
+              ))}
+            </div>
+          )}
 
           {/* Pagination Dots */}
           <div className="flex justify-center mt-8 gap-2">
@@ -314,9 +348,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-            {DEALS_PRODUCTS.map((p) => (
-              <ProductCard key={p.id} {...p} onClick={() => onProductClick(p.id)} />
-            ))}
+            {dealsProducts.length > 0 ? dealsProducts.map((p) => (
+              <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
+            )) : (
+              <p className="col-span-full text-center py-8 text-sm font-medium text-white/70">No deals available right now.</p>
+            )}
           </div>
         </section>
 
@@ -330,9 +366,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-            {TRENDING_ITEMS.map((p) => (
-              <ProductCard key={p.id} {...p} onClick={() => onProductClick(p.id)} />
-            ))}
+            {trendingItems.length > 0 ? trendingItems.map((p) => (
+              <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
+            )) : (
+              <p className="col-span-full text-center py-8 text-sm font-medium text-gray-400">No trending items yet.</p>
+            )}
           </div>
         </section>
       </main>

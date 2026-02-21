@@ -66,11 +66,19 @@ const PUBLIC_ENDPOINTS: string[] = [
   'lga/all',     // GET /lga/all  — public lookup
   'business/all', // GET /business/all  — public browse
   'business',    // GET /business?id=X  — public single fetch
+  'product',     // GET /product  — public browse all products
+  'cart',        // GET /cart  — public cart operations
+  'order',       // GET /order  — public order operations
 ];
 
+// Prefixes for endpoints that use path params (e.g. product/123, cart/5)
+const PUBLIC_ENDPOINT_PREFIXES: string[] = ['product/', 'cart/', 'order/'];
+
 function isPublicEndpoint(endpoint: string): boolean {
-  // Exact match only — avoids 'event' accidentally matching 'event/create', 'event/update', etc.
-  return PUBLIC_ENDPOINTS.includes(endpoint);
+  // Exact match first
+  if (PUBLIC_ENDPOINTS.includes(endpoint)) return true;
+  // Prefix match for path-param endpoints like product/123
+  return PUBLIC_ENDPOINT_PREFIXES.some((prefix) => endpoint.startsWith(prefix));
 }
 
 /**
@@ -85,7 +93,7 @@ function isPublicEndpoint(endpoint: string): boolean {
  */
 export async function callXanoEndpoint(
   endpoint: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   data?: unknown,
   params?: Record<string, unknown>,
   app: AppType = 'main',

@@ -6,6 +6,23 @@ export type { AppType } from '@mlc/api-client';
 export { getAllBusinesses, createBusiness } from '@mlc/api-client';
 export { getEvent, getAllEvents, createEvent } from '@mlc/api-client';
 export { getAllLGAs } from '@mlc/api-client';
+export {
+  getAllProducts,
+  getProduct,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getAllCartItems,
+  getCartItem,
+  addToCart,
+  updateCartItem,
+  deleteCartItem,
+  getAllOrders,
+  getOrder,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+} from '@mlc/api-client';
 
 // Re-export the legacy default export shape for components using it
 import axios from 'axios';

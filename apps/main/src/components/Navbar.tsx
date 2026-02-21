@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ShoppingBag, Heart, User, LogIn, UserPlus, Menu, X, ChevronDown } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 
 interface NavbarProps {
   onProfileClick: () => void;
@@ -10,6 +11,7 @@ interface NavbarProps {
   onEventsClick: () => void;
   onAddBusinessClick: () => void;
   onShopClick: () => void;
+  onCartClick: () => void;
   onLoginClick: () => void;
   onSignupClick: () => void;
   isLoggedIn: boolean;
@@ -32,11 +34,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   onEventsClick, 
   onAddBusinessClick, 
   onShopClick,
+  onCartClick,
   onLoginClick,
   onSignupClick,
   isLoggedIn,
   onLogoutClick
 }) => {
+  const { cartCount } = useCart();
   const [showAuthMenu, setShowAuthMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileProfileMenu, setShowMobileProfileMenu] = useState(false);
@@ -106,9 +110,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Shopping Bag Icon */}
-          <div className="relative cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors" onClick={onShopClick}>
+          <div className="relative cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition-colors" onClick={onCartClick}>
             <ShoppingBag className="w-6 h-6 sm:w-5 sm:h-5 lg:w-5 lg:h-5 text-gray-700" />
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full">2</span>
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#f97316] text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{cartCount > 99 ? '99+' : cartCount}</span>
+            )}
           </div>
 
           {/* Desktop Profile Dropdown (Hidden on md and below) */}

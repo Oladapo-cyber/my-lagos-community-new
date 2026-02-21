@@ -19,6 +19,8 @@ import { AddBusinessPage } from './components/AddBusinessPage';
 import { AddEventPage } from './components/AddEventPage';
 import { ShopPage } from './components/ShopPage';
 import { ProductDetail } from './components/ProductDetail';
+import { ShoppingCartPage } from './components/ShoppingCartPage';
+import { ShopCheckout } from './components/ShopCheckout';
 import { EventDetailPage } from './components/EventDetailPage';
 import { SelectTicketCategory } from './components/SelectTicketCategory';
 import { EventRegistration } from './components/EventRegistration';
@@ -76,7 +78,7 @@ const ProductDetailWrapper: React.FC<{ onProductClick: (id: number) => void }> =
   }
   
   return (
-    <ProductDetail onBack={() => navigate('/shop')} onProductClick={onProductClick} />
+    <ProductDetail productId={Number(productId)} onBack={() => navigate('/shop')} onProductClick={onProductClick} />
   );
 };
 
@@ -130,6 +132,7 @@ const App: React.FC = () => {
         onEventsClick={() => navigate('/events')}
         onAddBusinessClick={() => navigate('/add-business')}
         onShopClick={() => navigate('/shop')}
+        onCartClick={() => navigate('/cart')}
         onLoginClick={() => openAuthModal('login')}
         onSignupClick={() => openAuthModal('signup')}
         isLoggedIn={isLoggedIn}
@@ -164,6 +167,8 @@ const App: React.FC = () => {
           <Route path="/add-event" element={<AddEventPage onBackToDashboard={() => navigate('/dashboard')} />} />
           <Route path="/shop" element={<ShopPage onProductClick={handleProductClick} />} />
           <Route path="/shop/:productId" element={<ProductDetailWrapper onProductClick={handleProductClick} />} />
+          <Route path="/cart" element={<ShoppingCartPage onBackToShop={() => navigate('/shop')} onCheckout={() => navigate('/shop/checkout')} />} />
+          <Route path="/shop/checkout" element={<ShopCheckout onBackToCart={() => navigate('/cart')} onBackToShop={() => navigate('/shop')} />} />
 
           {/* Dashboard redirect and role-guarded nested dashboards */}
           <Route path="/dashboard" element={<DashboardRouterRedirect />} />

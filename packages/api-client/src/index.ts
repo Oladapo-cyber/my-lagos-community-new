@@ -29,3 +29,24 @@ export { getAllLGAs } from './services/lga';
 // ============================
 export { getEvent, getAllEvents, createEvent, approveEvent } from './services/event';
 
+// ============================
+// Shop API services
+// ============================
+export {
+  getAllProducts,
+  getProduct,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getAllCartItems,
+  getCartItem,
+  addToCart,
+  updateCartItem,
+  deleteCartItem,
+  getAllOrders,
+  getOrder,
+  createOrder,
+  updateOrder,
+  deleteOrder,
+} from './services/shop';
+

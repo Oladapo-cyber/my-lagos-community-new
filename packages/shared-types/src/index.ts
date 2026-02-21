@@ -434,3 +434,84 @@ export interface XanoEventDetail {
   /** Allows undocumented fields from Xano to pass through without TS errors */
   [key: string]: unknown;
 }
+
+// ============================
+// Xano Shop / Product API Types
+// ============================
+
+export type ProductCategory =
+  | 'Supermarket'
+  | 'Health'
+  | 'Beauty'
+  | 'Home & Garden'
+  | 'Jewellery'
+  | 'Pet Care'
+  | 'Baby Products'
+  | 'Sporting Goods'
+  | 'Automobile'
+  | 'Electronics'
+  | 'Fashion'
+  | 'Gaming'
+  | string;
+
+export interface Product {
+  id: number;
+  created_at: number;
+  name: string;
+  category: ProductCategory;
+  tag: string[];
+  price: number;
+  description: string;
+  quantity: number;
+  image?: string[];
+}
+
+export interface CreateProductPayload {
+  name: string;
+  category: ProductCategory;
+  tag: string[];
+  price: number;
+  description: string;
+  quantity: number;
+}
+
+// ============================
+// Xano Cart API Types
+// ============================
+
+export interface CartItem {
+  id: number;
+  created_at: number;
+  user_id: number;
+  product_id: number;
+  quantity: number;
+}
+
+export interface CartItemPayload {
+  user_id: number;
+  product_id: number;
+  quantity: number;
+}
+
+// ============================
+// Xano Order API Types
+// ============================
+
+export type PaymentMethod = 'bank' | 'cash' | 'card' | string;
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | string;
+
+export interface ShopOrder {
+  id: number;
+  created_at: number;
+  user_id: number;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+}
+
+export interface CreateOrderPayload {
+  user_id: number;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+}

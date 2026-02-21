@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 import { ToastProvider } from '@mlc/ui-components';
 import './index.css';
 
@@ -16,9 +17,11 @@ root.render(
   <React.StrictMode>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
+        <CartProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

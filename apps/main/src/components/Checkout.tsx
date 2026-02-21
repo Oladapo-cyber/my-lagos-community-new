@@ -73,6 +73,7 @@ export const Checkout: React.FC = () => {
           onEventsClick={() => navigate('/events')}
           onAddBusinessClick={() => navigate('/add-business')}
           onShopClick={() => navigate('/shop')}
+          onCartClick={() => navigate('/cart')}
           onLoginClick={() => navigate('/')}
           onSignupClick={() => navigate('/')}
           isLoggedIn={isLoggedIn}
@@ -115,6 +116,7 @@ export const Checkout: React.FC = () => {
         onEventsClick={() => navigate('/events')}
         onAddBusinessClick={() => navigate('/add-business')}
         onShopClick={() => navigate('/shop')}
+        onCartClick={() => navigate('/cart')}
         onLoginClick={() => navigate('/')}
         onSignupClick={() => navigate('/')}
         isLoggedIn={isLoggedIn}
