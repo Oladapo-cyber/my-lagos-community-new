@@ -142,6 +142,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await callXanoEndpoint('auth/login', 'POST', payload, undefined, 'main');
       
       console.log('[Auth] Login response:', response);
+
+      // Handle cases where the backend returns a 200 OK with an error string or message
+      const responseStr = typeof response === 'string' ? response.toLowerCase() : '';
+      const responseMsg = typeof response === 'object' && response !== null && 'message' in response ? String((response as any).message).toLowerCase() : '';
+      
+      if (responseStr.includes('incorrect password') || responseMsg.includes('incorrect password')) {
+        throw new Error('Incorrect password');
+      }
+      if (responseStr.includes('incorrect username') || responseMsg.includes('incorrect username') || responseStr.includes('incorrect email') || responseMsg.includes('incorrect email')) {
+        throw new Error('Incorrect username or email');
+      }
       
       const token = response.authToken || response.auth_token || response.token;
       

@@ -27,9 +27,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Redirect /login to /dashboard if already logged in
 const LoginRoute: React.FC = () => {
-  const { isLoggedIn, isLoading } = useAdminAuth();
+  const { isLoggedIn } = useAdminAuth();
 
-  if (isLoading) return <LoadingScreen />;
+  // If already logged in, redirect to dashboard. 
+  // We do NOT use isLoading here so the login page doesn't disappear into a full-screen spinner when the user clicks "Login".
   if (isLoggedIn) return <Navigate to="/dashboard" replace />;
 
   return <AdminLogin />;

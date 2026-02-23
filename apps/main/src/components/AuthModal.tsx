@@ -16,9 +16,20 @@ interface AuthModalProps {
 const LoginForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
   const { login, isLoading, error: authError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedId = localStorage.getItem('main_remember_identifier');
+    const savedPass = localStorage.getItem('main_remember_password');
+    if (savedId && savedPass) {
+      setIdentifier(savedId);
+      setPassword(savedPass);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +42,15 @@ const LoginForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
       }
 
       await login(identifier, password);
+      
+      if (rememberMe) {
+        localStorage.setItem('main_remember_identifier', identifier);
+        localStorage.setItem('main_remember_password', password);
+      } else {
+        localStorage.removeItem('main_remember_identifier');
+        localStorage.removeItem('main_remember_password');
+      }
+
       onAuthSuccess();
     } catch (err: any) {
       console.error('Login error:', err);
@@ -77,15 +97,32 @@ const LoginForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
                 disabled={isLoading}
              />
              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
-             <button 
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                disabled={isLoading}
-             >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-             </button>
+             <div className="absolute right-3 top-0 h-full flex items-center justify-center">
+               <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600 p-1 flex items-center justify-center focus:outline-none"
+                  disabled={isLoading}
+                  title={showPassword ? "Hide password" : "Show password"}
+               >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+               </button>
+             </div>
           </div>
+       </div>
+
+       <div className="flex items-center gap-2 pt-2 ml-1">
+          <input
+             id="mainRememberMe"
+             type="checkbox"
+             checked={rememberMe}
+             onChange={(e) => setRememberMe(e.target.checked)}
+             className="w-4 h-4 accent-blue-600 cursor-pointer rounded border-gray-300"
+             disabled={isLoading}
+          />
+          <label htmlFor="mainRememberMe" className="text-[10px] uppercase font-black tracking-widest text-gray-500 cursor-pointer select-none mt-[2px]">
+             Remember Me
+          </label>
        </div>
 
        <button 
@@ -380,13 +417,16 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
                  onBlur={formik.handleBlur}
               />
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
-              <button 
-                 type="button"
-                 onClick={() => setShowPassword(!showPassword)}
-                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-              >
-                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+              <div className="absolute right-3 top-0 h-full flex items-center justify-center">
+                 <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 p-1 flex items-center justify-center focus:outline-none"
+                    title={showPassword ? "Hide password" : "Show password"}
+                 >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                 </button>
+              </div>
            </div>
            {formik.touched.password && formik.errors.password && (
              <div className="text-red-500 text-[10px] font-bold ml-1">{formik.errors.password}</div>
@@ -406,13 +446,16 @@ const SignupForm = ({ onAuthSuccess }: { onAuthSuccess: () => void }) => {
                  onBlur={formik.handleBlur}
               />
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
-              <button 
-                 type="button"
-                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-              >
-                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+              <div className="absolute right-3 top-0 h-full flex items-center justify-center">
+                 <button 
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="text-gray-400 hover:text-gray-600 p-1 flex items-center justify-center focus:outline-none"
+                    title={showConfirmPassword ? "Hide password" : "Show password"}
+                 >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                 </button>
+              </div>
            </div>
            {formik.touched.confirmPassword && formik.errors.confirmPassword && (
              <div className="text-red-500 text-[10px] font-bold ml-1">{formik.errors.confirmPassword}</div>

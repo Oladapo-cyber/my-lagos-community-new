@@ -28,6 +28,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (window.innerWidth >= 1024) return; // Only apply on mobile/tablet
+
+    const currentScrollY = e.currentTarget.scrollTop;
+    if (currentScrollY > lastScrollY && currentScrollY > 60) {
+      // Scrolling down
+      if (isHeaderVisible) setIsHeaderVisible(false);
+    } else if (currentScrollY < lastScrollY) {
+      // Scrolling up
+      if (!isHeaderVisible) setIsHeaderVisible(true);
+    }
+    setLastScrollY(currentScrollY);
+  };
 
   // Derive active tab from current URL path
   const pathSuffix = location.pathname.replace(basePath, '').replace(/^\//, '');
@@ -64,14 +80,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="flex h-[calc(100vh-64px)] bg-[#f9fafb] overflow-hidden relative">
-      {/* Mobile Toggle Button */}
-      <button
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-24 right-6 z-[999] w-10 h-10 bg-gray-100 text-gray-600 rounded-lg shadow-sm flex items-center justify-center active:scale-95 transition-all border border-gray-200"
-        aria-label="Toggle Menu"
-      >
-        {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
 
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
@@ -141,16 +149,32 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </aside>
 
       {/* Main Content Wrapper */}
-      <div className="flex-1 flex flex-col min-w-0 relative bg-[#f9fafb]">
+      <div 
+         className="flex-1 flex flex-col min-w-0 relative bg-[#f9fafb] h-full overflow-y-auto no-scrollbar"
+         onScroll={handleScroll}
+      >
         {/* Header Area */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 md:p-8 lg:px-10 lg:pt-6 pb-4 shrink-0 z-10 bg-[#f9fafb]">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">{getActiveLabel()}</h1>
+        <div 
+          className={`
+            sticky top-0 z-20 flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 md:p-8 lg:px-10 lg:pt-6 pb-4 bg-[#f9fafb]/95 backdrop-blur-sm
+            transition-all duration-300 shadow-sm md:shadow-none
+            ${!isHeaderVisible ? '-translate-y-full opacity-0 lg:translate-y-0 lg:opacity-100' : 'translate-y-0 opacity-100'}
+          `}
+        >
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">{getActiveLabel()}</h1>
+            {/* Mobile Toggle Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden w-10 h-10 bg-white text-gray-600 rounded-lg shadow-sm flex items-center justify-center active:scale-95 transition-all border border-gray-200"
+              aria-label="Toggle Menu"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
 
-          <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8 pr-12 lg:pr-0">
-            <span className="text-[10px] md:text-sm font-bold text-gray-500 uppercase tracking-widest">
-              Home &gt;&gt; {getActiveLabel()}
-            </span>
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm self-start">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm self-start md:self-auto">
               <div className="w-8 h-8 rounded-full border border-gray-200 overflow-hidden relative">
                 {user?.avatar ? (
                   <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
@@ -166,7 +190,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:px-10 lg:pb-10">{children}</div>
+        <div className="flex-1 p-6 md:p-8 lg:px-10 lg:pb-10 pt-2 lg:pt-6">{children}</div>
       </div>
     </div>
   );

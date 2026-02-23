@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { User, UserRole, MerchantProfile, UserAddress } from '@mlc/shared-types';
 import { mapBackendUserTypeToRole } from '@mlc/shared-types';
 import { callXanoEndpoint, setAuthToken, getAuthToken } from '@mlc/api-client';
+
+const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes in milliseconds
+const LAST_ACTIVITY_KEY = 'admin_last_activity';
 
 interface AdminAuthContextType {
   user: User | null;
@@ -20,14 +23,80 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const logout = useCallback(() => {
+    setAuthToken(null, 'admin');
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
+    setUser(null);
+    setError(null);
+  }, []);
+
   useEffect(() => {
     const token = getAuthToken('admin');
     if (token) {
-      fetchCurrentUser();
+      // Check if session has expired on initial load
+      const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+      if (lastActivity && Date.now() - parseInt(lastActivity, 10) > INACTIVITY_TIMEOUT) {
+        // Session expired while away
+        logout();
+        setIsLoading(false);
+      } else {
+        fetchCurrentUser();
+      }
     } else {
       setIsLoading(false);
     }
   }, []);
+
+  const resetInactivityTimer = useCallback(() => {
+    if (user) {
+      localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Set initial activity time when user logs in
+    localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+
+    let intervalId: NodeJS.Timeout;
+
+    const checkInactivity = () => {
+      const lastActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
+      if (lastActivity && Date.now() - parseInt(lastActivity, 10) > INACTIVITY_TIMEOUT) {
+        console.log('[Admin Auth] Session expired due to inactivity');
+        logout();
+      }
+    };
+
+    // Check inactivity every minute
+    intervalId = setInterval(checkInactivity, 60000);
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll'];
+
+    // Throttle resetting the timer to avoid excessive localStorage writes (e.g., limit to once per second)
+    let throttleTimeout: NodeJS.Timeout | null = null;
+    const handleActivity = () => {
+      if (!throttleTimeout) {
+        throttleTimeout = setTimeout(() => {
+          resetInactivityTimer();
+          throttleTimeout = null;
+        }, 1000);
+      }
+    };
+
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    return () => {
+      clearInterval(intervalId);
+      if (throttleTimeout) clearTimeout(throttleTimeout);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [user, logout, resetInactivityTimer]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -96,6 +165,17 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       const response = await callXanoEndpoint('auth/login', 'POST', { email, password }, undefined, 'admin');
 
+      // Handle cases where the backend returns a 200 OK with an error string or message
+      const responseStr = typeof response === 'string' ? response.toLowerCase() : '';
+      const responseMsg = typeof response === 'object' && response !== null && 'message' in response ? String((response as any).message).toLowerCase() : '';
+      
+      if (responseStr.includes('incorrect password') || responseMsg.includes('incorrect password')) {
+        throw new Error('Incorrect password');
+      }
+      if (responseStr.includes('incorrect username') || responseMsg.includes('incorrect username') || responseStr.includes('incorrect email') || responseMsg.includes('incorrect email')) {
+        throw new Error('Incorrect username or email');
+      }
+
       const token = response.authToken || response.auth_token || response.token;
       if (!token) {
         throw new Error('No auth token received');
@@ -126,12 +206,6 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const logout = () => {
-    setAuthToken(null, 'admin');
-    setUser(null);
-    setError(null);
   };
 
   return (
