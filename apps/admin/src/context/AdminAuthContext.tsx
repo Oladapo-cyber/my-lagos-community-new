@@ -98,9 +98,9 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
   }, [user, logout, resetInactivityTimer]);
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = async (setLoadingState = true) => {
     try {
-      setIsLoading(true);
+      if (setLoadingState) setIsLoading(true);
       const response = await callXanoEndpoint('auth/me', 'GET', undefined, undefined, 'admin');
 
       const data = response?.user || response;
@@ -152,9 +152,11 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
       });
     } catch (err: any) {
       console.error('[Admin Auth] Failed to fetch user:', err);
+      // Remove token to ensure app isn't stuck holding a bad token
+      setAuthToken(null, 'admin');
       logout();
     } finally {
-      setIsLoading(false);
+      if (setLoadingState) setIsLoading(false);
     }
   };
 
@@ -197,7 +199,9 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
 
       // Role validated, now set user
-      await fetchCurrentUser();
+      // Pass false to prevent fetchCurrentUser from immediately setting isLoading to false
+      // before login completes its own finally block
+      await fetchCurrentUser(false);
     } catch (err: any) {
       console.error('[Admin Auth] Login failed:', err);
       const errorMessage = err.message || 'Login failed.';
