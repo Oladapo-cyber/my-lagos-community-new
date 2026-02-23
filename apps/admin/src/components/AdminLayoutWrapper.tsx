@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { Menu, X, LogOut, Bell } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Store, DollarSign, BarChart3, AlertTriangle, FileText, UserCircle, ShoppingBag, Calendar, List } from 'lucide-react';
+import { LayoutDashboard, Users, Store, DollarSign, BarChart3, AlertTriangle, FileText, UserCircle, ShoppingBag, Calendar, List, Package, ShoppingCart } from 'lucide-react';
 
 interface AdminLayoutWrapperProps {
   children: ReactNode;
@@ -22,13 +22,12 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'events', icon: Calendar, label: 'Events', path: '/dashboard/events' },
   { id: 'listings', icon: List, label: 'Listings', path: '/dashboard/listings' },
   // { id: 'financials', icon: DollarSign, label: 'Financials', path: '/dashboard/financials' }, // no live endpoint yet
-  // -- SHOP section: no live endpoints yet --
-  // { id: 'shop-header', label: 'SHOP', isSection: true },
-  // { id: 'retail-dashboard', label: 'Retail Dashboard', path: '/dashboard/shop' },
-  // { id: 'products', label: 'Products', path: '/dashboard/shop/products' },
-  // { id: 'orders', label: 'Orders', path: '/dashboard/shop/orders' },
-  // { id: 'customers', label: 'Customers', path: '/dashboard/shop/customers' },
-  // { id: 'reviews', label: 'Reviews', path: '/dashboard/shop/reviews' },
+  { id: 'shop-header', label: 'SHOP', isSection: true },
+  { id: 'retail-dashboard', icon: ShoppingBag, label: 'Retail Dashboard', path: '/dashboard/shop' },
+  { id: 'products', icon: Package, label: 'Products', path: '/dashboard/shop/products' },
+  { id: 'orders', icon: ShoppingCart, label: 'Orders', path: '/dashboard/shop/orders' },
+  // { id: 'customers', label: 'Customers', path: '/dashboard/shop/customers' }, // no API endpoint yet
+  // { id: 'reviews', label: 'Reviews', path: '/dashboard/shop/reviews' }, // no API endpoint yet
   { id: 'admin-header', label: 'ADMIN', isSection: true },
   { id: 'merchants', icon: Store, label: 'Merchants', path: '/dashboard/merchants' },
   // { id: 'system-users', label: 'System Users', path: '/dashboard/users' }, // no live endpoint yet

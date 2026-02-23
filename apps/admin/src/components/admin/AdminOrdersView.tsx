@@ -1,66 +1,84 @@
-import React, { useState } from 'react';
-import { Search, Calendar, MoreVertical, FileText } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { Doughnut } from 'react-chartjs-2';
+import { getAllOrders } from '@mlc/api-client';
+import type { ShopOrder } from '@mlc/shared-types';
 
 export const AdminOrdersView = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [retryKey, setRetryKey] = useState(0);
   const itemsPerPage = 10;
 
-  // Order distribution chart
+  // API state
+  const [orders, setOrders] = useState<ShopOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      try {
+        const raw = await getAllOrders('admin');
+        if (cancelled) return;
+        setOrders(Array.isArray(raw) ? raw : (raw as any)?.items ?? []);
+      } catch (err) {
+        if (!cancelled) setFetchError('Failed to load orders. Please retry.');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [retryKey]);
+
+  // Derive doughnut chart data from real payment statuses
+  const statusCounts = useMemo(() => {
+    const completed = orders.filter(o => o.paymentStatus === 'completed').length;
+    const pending = orders.filter(o => o.paymentStatus === 'pending').length;
+    const failed = orders.filter(o => o.paymentStatus === 'failed' || o.paymentStatus === 'refunded').length;
+    return { completed, pending, failed };
+  }, [orders]);
+
+  const totalRevenue = useMemo(() =>
+    orders.reduce((sum, o) => sum + (o.totalAmount ?? 0), 0), [orders]);
+
   const orderDistData = {
-    labels: ['Open State', 'Cgn State', 'Djun State'],
-    datasets: [
-      {
-        data: [53, 28, 19],
-        backgroundColor: ['#10b981', '#fbbf24', '#3b82f6'],
-        borderWidth: 0,
-      },
-    ],
+    labels: ['Completed', 'Pending', 'Failed/Refunded'],
+    datasets: [{
+      data: [statusCounts.completed || 1, statusCounts.pending || 0, statusCounts.failed || 0],
+      backgroundColor: ['#10b981', '#fbbf24', '#3b82f6'],
+      borderWidth: 0,
+    }],
   };
 
   const donutOptions = {
     responsive: true,
     maintainAspectRatio: false,
     cutout: '70%',
-    plugins: {
-      legend: { display: false },
-    },
+    plugins: { legend: { display: false } },
   };
 
-  // Recent orders
-  const recentOrders = [
-    { id: 1, customer: 'Customer Name', time: '5 minutes ago', amount: '₦10,000.00' },
-    { id: 2, customer: 'Customer Name', time: '13 minutes ago', amount: '₦50,000' },
-    { id: 3, customer: 'Customer Name', time: '30 minutes ago', amount: '₦20,000.00' },
-    { id: 4, customer: 'Customer Name', time: '1 hours ago', amount: '₦50,000.00' },
-    { id: 5, customer: 'Customer Name', time: '2 hours ago', amount: '₦20,000.00' },
-  ];
+  // Recent orders: last 5 by ID desc
+  const recentOrders = useMemo(() =>
+    [...orders].sort((a, b) => b.id - a.id).slice(0, 5), [orders]);
 
-  // Orders table data
-  const orders = [
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-    { id: '001', customer: 'Tiger Nixon', email: 'tiger@123gmail.com', orderId: '235', product: 'Dinner Ware', price: '₦10,000.00', orderDate: 'Oct 15, 2022 10:00am' },
-  ];
-
-  const filteredOrders = orders.filter(order =>
-    order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    order.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredOrders = useMemo(() =>
+    orders.filter(o => String(o.id).includes(searchQuery) || String(o.user_id).includes(searchQuery)),
+    [orders, searchQuery]);
 
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  const statusBadge = (status: string) => {
+    if (status === 'completed') return 'bg-emerald-100 text-emerald-700';
+    if (status === 'pending') return 'bg-amber-100 text-amber-700';
+    return 'bg-red-100 text-red-700';
+  };
 
   return (
     <div className="space-y-6">
@@ -75,75 +93,92 @@ export const AdminOrdersView = () => {
 
       {/* Stats and Chart Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Customer List Preview */}
+        {/* Recent Orders Panel */}
         <div className="lg:col-span-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-gray-800">Customer List</h3>
-            <button className="text-gray-400 hover:text-gray-600">
-              <MoreVertical size={20} />
-            </button>
+            <h3 className="text-lg font-bold text-gray-800">Recent Orders</h3>
           </div>
-          <div className="space-y-3">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center gap-3 pb-3 border-b border-gray-50 last:border-0">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-gray-900">{order.customer}</p>
-                  <p className="text-xs text-gray-500">{order.time}</p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="animate-spin text-blue-600" size={24} />
+            </div>
+          ) : fetchError ? (
+            <div className="flex flex-col items-center py-10">
+              <AlertCircle className="text-red-400 mb-2" size={20} />
+              <p className="text-sm text-red-500 mb-3">{fetchError}</p>
+              <button onClick={() => setRetryKey(k => k + 1)} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg">Retry</button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentOrders.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">No orders yet.</p>
+              ) : recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center gap-3 pb-3 border-b border-gray-50 last:border-0">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold text-blue-600">
+                    #{order.id}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-gray-900">User #{order.user_id}</p>
+                    <p className="text-xs text-gray-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadge(order.paymentStatus)}`}>
+                      {order.paymentStatus}
+                    </span>
+                    <p className="text-sm font-bold text-gray-700">₦{order.totalAmount?.toLocaleString() ?? 0}</p>
+                  </div>
                 </div>
-                <p className="text-sm font-bold text-red-500">{order.amount}</p>
-              </div>
-            ))}
-          </div>
-          <a href="#" className="block text-center mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium">
-            See All
-          </a>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setCurrentPage(1)}
+            className="block w-full text-center mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            See All Orders ↓
+          </button>
         </div>
 
         {/* Active Order Distribution */}
         <div className="lg:col-span-4 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-6">Active Order Distribution</h3>
-          <div className="space-y-4">
-            <div className="relative w-full h-48 mb-6">
-              <Doughnut data={orderDistData} options={donutOptions} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <p className="text-xs text-gray-500">Total Active Orders</p>
-                <p className="text-2xl font-bold text-gray-900">₦507,530</p>
+          <h3 className="text-lg font-bold text-gray-800 mb-6">Order Distribution</h3>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="animate-spin text-blue-600" size={24} />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="relative w-full h-48 mb-6">
+                <Doughnut data={orderDistData} options={donutOptions} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <p className="text-xs text-gray-500">Total Revenue</p>
+                  <p className="text-xl font-bold text-gray-900">₦{totalRevenue.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: 'Completed', color: 'bg-emerald-500', textColor: 'text-emerald-600', count: statusCounts.completed },
+                  { label: 'Pending', color: 'bg-amber-400', textColor: 'text-amber-600', count: statusCounts.pending },
+                  { label: 'Failed / Refunded', color: 'bg-blue-500', textColor: 'text-blue-600', count: statusCounts.failed },
+                ].map(({ label, color, textColor, count }) => {
+                  const total = orders.length || 1;
+                  const pct = Math.round((count / total) * 100);
+                  return (
+                    <div key={label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3 h-3 rounded-full ${color}`} />
+                          <span className="text-sm text-gray-600">{label}</span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-900">{count}</span>
+                      </div>
+                      <p className={`text-xs font-medium ml-5 ${textColor}`}>{pct}% OF TOTAL</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
-                    <span className="text-sm text-gray-600">Open State</span>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">₦500,000.00</span>
-                </div>
-                <p className="text-xs text-emerald-600 font-medium ml-5">53% ACTIVE</p>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-amber-400 rounded-full"></span>
-                    <span className="text-sm text-gray-600">Cgn State</span>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">5,030</span>
-                </div>
-                <p className="text-xs text-amber-600 font-medium ml-5">28% ACTIVE</p>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                    <span className="text-sm text-gray-600">Djun State</span>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">2,500</span>
-                </div>
-                <p className="text-xs text-blue-600 font-medium ml-5">19% ACTIVE</p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -151,41 +186,19 @@ export const AdminOrdersView = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-800">Customer List</h3>
-            <button className="text-gray-400 hover:text-gray-600">
-              <MoreVertical size={20} />
-            </button>
+            <h3 className="text-lg font-bold text-gray-800">All Orders</h3>
           </div>
-
-          {/* Search and Filters */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Search Name/Email"
+                placeholder="Search by Order ID or User ID"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
-              <Calendar size={16} />
-              From
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
-              <Calendar size={16} />
-              To
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-              All
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-              Out of Stock
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-              In Stock
-            </button>
           </div>
         </div>
 
@@ -195,29 +208,44 @@ export const AdminOrdersView = () => {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer Name</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email Id</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Order Id</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Product Name</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Price</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Payment Method</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Order Date</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {paginatedOrders.map((order, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <Loader2 className="mx-auto mb-2 text-blue-600 animate-spin" size={28} />
+                    <p className="text-sm text-gray-400">Loading orders...</p>
+                  </td>
+                </tr>
+              ) : fetchError ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <AlertCircle className="mx-auto mb-2 text-red-400" size={28} />
+                    <p className="text-sm text-red-500 mb-3">{fetchError}</p>
+                    <button onClick={() => setRetryKey(k => k + 1)} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Retry</button>
+                  </td>
+                </tr>
+              ) : paginatedOrders.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-400">No orders found.</td></tr>
+              ) : paginatedOrders.map((order) => (
+                <tr key={order.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{order.customer}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 underline">{order.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.orderId}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.product}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.price}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.orderDate}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                    <button className="hover:text-gray-600">
-                      <MoreVertical size={16} />
-                    </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">User #{order.user_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₦{order.totalAmount?.toLocaleString() ?? 0}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">{order.paymentMethod ?? '—'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2.5 py-1 rounded text-xs font-medium capitalize ${statusBadge(order.paymentStatus)}`}>
+                      {order.paymentStatus}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {order.created_at ? new Date(order.created_at).toLocaleDateString() : '—'}
                   </td>
                 </tr>
               ))}
@@ -226,27 +254,26 @@ export const AdminOrdersView = () => {
         </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredOrders.length)} of {filteredOrders.length} Records
-          </p>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded ${
-                  currentPage === page
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900">»</button>
+        {!isLoading && !fetchError && filteredOrders.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredOrders.length)} of {filteredOrders.length} records
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 text-sm text-gray-600 disabled:opacity-40">«</button>
+              {[...Array(Math.min(totalPages, 5))].map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentPage(idx + 1)}
+                  className={`w-8 h-8 rounded ${currentPage === idx + 1 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {idx + 1}
+                </button>
+              ))}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 text-sm text-gray-600 disabled:opacity-40">»</button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
