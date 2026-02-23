@@ -78,6 +78,7 @@ export const EventRegistration: React.FC = () => {
         onAddBusinessClick={() => navigate('/add-business')}
         onShopClick={() => navigate('/shop')}
         onCartClick={() => navigate('/cart')}
+        onFavoritesClick={() => navigate('/favorites')}
         onLoginClick={() => navigate('/')}
         onSignupClick={() => navigate('/')}
         isLoggedIn={isLoggedIn}
