@@ -62,37 +62,60 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /* ---------- load cart on mount / auth change ---------- */
   const loadCart = useCallback(async () => {
-    if (isLoggedIn && user) {
-      // Authenticated → fetch from Xano
-      setIsLoading(true);
-      try {
-        const response = await getAllCartItems();
-        const cartItems: CartItem[] = Array.isArray(response) ? response : (response as any)?.items ?? [];
-        
-        // Enrich each cart item with product details
-        const enriched: CartItemWithProduct[] = [];
-        for (const ci of cartItems) {
-          try {
-            const product = await getProduct(ci.product_id);
-            enriched.push({ cartItemId: ci.id, product, quantity: ci.quantity });
-          } catch {
-            // Product may have been deleted — skip
+    setIsLoading(true);
+    try {
+      if (isLoggedIn && user) {
+        // Authenticated → try to fetch from Xano, fall back to localStorage
+        try {
+          const response = await getAllCartItems();
+          const cartItems: CartItem[] = Array.isArray(response) ? response : (response as any)?.items ?? [];
+          
+          // Enrich each cart item with product details
+          const enriched: CartItemWithProduct[] = [];
+          for (const ci of cartItems) {
+            // Guard against product_id = 0 or undefined
+            if (!ci.product_id || ci.product_id <= 0) {
+              console.warn(`[CartContext] Skipping invalid product_id: ${ci.product_id}`);
+              continue;
+            }
+            try {
+              const product = await getProduct(ci.product_id);
+              enriched.push({ cartItemId: ci.id, product, quantity: ci.quantity });
+            } catch {
+              // Product may have been deleted — skip
+            }
           }
+          setItems(enriched);
+        } catch (err) {
+          console.error('[CartContext] failed to load remote cart, using localStorage fallback:', err);
+          // Fall back to guest cart in localStorage
+          const guest = loadGuestCart();
+          setItems(guest.map((g, idx) => ({
+            cartItemId: -(idx + 1),
+            product: g.product,
+            quantity: g.quantity,
+          })));
         }
-        setItems(enriched);
-      } catch (err) {
-        console.error('[CartContext] failed to load remote cart:', err);
-      } finally {
-        setIsLoading(false);
+      } else {
+        // Guest → use localStorage
+        const guest = loadGuestCart();
+        setItems(guest.map((g, idx) => ({
+          cartItemId: -(idx + 1), // negative ids for guest items
+          product: g.product,
+          quantity: g.quantity,
+        })));
       }
-    } else {
-      // Guest → use localStorage
+    } catch (err) {
+      console.error('[CartContext] loadCart error:', err);
+      // Last resort: load guest cart
       const guest = loadGuestCart();
       setItems(guest.map((g, idx) => ({
-        cartItemId: -(idx + 1), // negative ids for guest items
+        cartItemId: -(idx + 1),
         product: g.product,
         quantity: g.quantity,
       })));
+    } finally {
+      setIsLoading(false);
     }
   }, [isLoggedIn, user]);
 
@@ -121,24 +144,36 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /* ---------- actions ---------- */
   const addItem = useCallback(async (product: Product, quantity = 1) => {
+    // Always save to localStorage as backup
+    const guest = loadGuestCart();
+    const existing = guest.find(g => g.productId === product.id);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      guest.push({ productId: product.id, product, quantity });
+    }
+    saveGuestCart(guest);
+
     if (isLoggedIn && user) {
       try {
         await addToCart({ user_id: Number(user.id) || 0, product_id: product.id, quantity });
         await loadCart();
       } catch (err) {
-        console.error('[CartContext] addToCart failed:', err);
+        console.error('[CartContext] addToCart API failed, using localStorage:', err);
+        // Still update local state from localStorage
+        setItems(guest.map((g, idx) => ({
+          cartItemId: -(idx + 1),
+          product: g.product,
+          quantity: g.quantity,
+        })));
       }
     } else {
-      // Guest cart
-      const guest = loadGuestCart();
-      const existing = guest.find(g => g.productId === product.id);
-      if (existing) {
-        existing.quantity += quantity;
-      } else {
-        guest.push({ productId: product.id, product, quantity });
-      }
-      saveGuestCart(guest);
-      await loadCart();
+      // Guest cart - update state from localStorage
+      setItems(guest.map((g, idx) => ({
+        cartItemId: -(idx + 1),
+        product: g.product,
+        quantity: g.quantity,
+      })));
     }
   }, [isLoggedIn, user, loadCart]);
 

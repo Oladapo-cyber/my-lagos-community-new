@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import type { Product } from '@mlc/shared-types';
 import { getAllProducts } from '../utils/apiClient';
+import { useFavorites } from '../context/FavoritesContext';
 
 // Sidebar categories
 const SIDEBAR_CATEGORIES = [
@@ -42,19 +43,22 @@ const SIDEBAR_CATEGORIES = [
   { icon: Baby, label: 'Baby Products' },
   { icon: Trophy, label: 'Sporting Goods' },
   { icon: Car, label: 'Automobile' },
+  { icon: Cpu, label: 'Electronics' },
+  { icon: Shirt, label: 'Fashion' },
+  { icon: Gamepad2, label: 'Gaming' },
   { icon: MoreHorizontal, label: 'Other Categories' },
 ];
 
-// Shop by Category cards (visual only – these are decorative category tiles)
+// Shop by Category cards — `category` must match backend ProductCategory enum
 const CATEGORY_CARDS = [
-  { title: 'Gaming Accessories', img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop' },
-  { title: 'Ankara Shoes', img: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop' },
-  { title: 'Handle Bags', img: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&auto=format&fit=crop' },
-  { title: 'Home Theater', img: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=800&auto=format&fit=crop' },
-  { title: 'Toys & Games', img: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop' },
-  { title: 'Home Decor', img: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop' },
-  { title: 'Furniture', img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop' },
-  { title: 'Computer Accessories', img: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop' },
+  { title: 'Gaming Accessories', category: 'Gaming',        img: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop' },
+  { title: 'Ankara Shoes',       category: 'Fashion',       img: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop' },
+  { title: 'Handle Bags',        category: 'Fashion',       img: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&auto=format&fit=crop' },
+  { title: 'Home Theater',       category: 'Electronics',   img: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=800&auto=format&fit=crop' },
+  { title: 'Toys & Games',       category: 'Sporting Goods',img: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop' },
+  { title: 'Home Decor',         category: 'Home & Garden', img: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop' },
+  { title: 'Furniture',          category: 'Home & Garden', img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop' },
+  { title: 'Computer Accessories',category: 'Electronics',  img: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop' },
 ];
 
 /** Format a number as ₦X,XXX */
@@ -109,12 +113,23 @@ const CountdownTimer: React.FC = () => {
 // Product Card Component – works with real Product data
 function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
   const img = product.image?.[0] || PLACEHOLDER_IMG;
+  const { isFavorited, toggleFavorite } = useFavorites();
+  const isLiked = isFavorited(product.id);
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFavorite(product.id);
+  };
+
   return (
     <div onClick={onClick} className="bg-white rounded-xl overflow-hidden group cursor-pointer border border-gray-100 hover:shadow-lg transition-all">
       <div className="relative h-48 bg-gray-50 overflow-hidden">
         <img src={img} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50">
-          <Heart className="w-4 h-4 text-gray-400 hover:text-red-500" />
+        <button 
+          onClick={handleFavoriteClick}
+          className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+        >
+          <Heart className={`w-4 h-4 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400 hover:text-red-500'}`} />
         </button>
       </div>
       <div className="p-4">
@@ -130,11 +145,21 @@ function ProductCard({ product, onClick }: { product: Product; onClick: () => vo
   );
 }
 
+// Section view modes: 'browse' = normal sectioned layout; others = full flat list for that section
+type ViewMode = 'browse' | 'arrivals' | 'trending' | 'deals';
+
 export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
   const [bannerIndex, setBannerIndex] = useState(0);
   const [activeDot, setActiveDot] = useState(0);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [viewMode, setViewMode] = useState<ViewMode>('browse');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Select a category from sidebar or a category card
+  const selectCategory = (cat: string) => {
+    setActiveCategory(cat);
+    setViewMode('browse');
+  };
 
   // ---- Real product data from API ----
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -167,12 +192,24 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
     return matchesCategory && matchesSearch;
   });
 
-  // Slice products into different sections for visual variety
   // Sort newest first (highest created_at)
   const sorted = [...filteredProducts].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-  const newArrivals = sorted.slice(0, 4);
+
+  // Whether to show a flat product grid instead of the sectioned browse layout
+  const showFlatGrid = viewMode !== 'browse' || activeCategory !== 'All';
+
+  // Title + products for the flat grid
+  const flatGridTitle =
+    viewMode === 'arrivals' ? 'New Arrivals' :
+    viewMode === 'trending' ? 'Trending Items' :
+    viewMode === 'deals'    ? 'Deals Of The Week' :
+    activeCategory !== 'All' ? activeCategory : 'All Products';
+  const flatGridProducts = sorted; // always the full (filtered) set
+
+  // Section slices (only used in browse mode)
+  const newArrivals  = sorted.slice(0, 4);
   const dealsProducts = sorted.slice(4, 8);
-  const trendingItems = sorted.slice(0, 8); // show all up to 8
+  const trendingItems = sorted.slice(0, 8);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -182,7 +219,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
           {SIDEBAR_CATEGORIES.map((cat, idx) => (
             <button
               key={idx}
-              onClick={() => setActiveCategory(cat.label)}
+              onClick={() => selectCategory(cat.label)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm font-bold transition-all ${
                 activeCategory === cat.label 
                   ? 'bg-[#f97316]/10 text-[#f97316]' 
@@ -270,19 +307,20 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
 
         {/* Shop By Category */}
         <section className="px-6 pb-10">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-black text-[#111] tracking-tight">Shop By Category</h2>
-              <p className="text-gray-400 text-xs font-bold mt-1">Top categories of the week</p>
-            </div>
-            <button className="flex items-center gap-1 text-sm font-bold text-gray-500 hover:text-[#f97316] transition-colors font-southern text-2xl">
-              See All →
-            </button>
+          <div className="mb-6">
+            <h2 className="text-2xl font-black text-[#111] tracking-tight">Shop By Category</h2>
+            <p className="text-gray-400 text-xs font-bold mt-1">Top categories of the week</p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {CATEGORY_CARDS.map((cat, idx) => (
-              <div key={idx} className="relative h-40 rounded-xl overflow-hidden group cursor-pointer">
+              <div
+                key={idx}
+                onClick={() => selectCategory(cat.category)}
+                className={`relative h-40 rounded-xl overflow-hidden group cursor-pointer ring-2 transition-all ${
+                  activeCategory === cat.category ? 'ring-[#f97316] shadow-lg' : 'ring-transparent'
+                }`}
+              >
                 <img src={cat.img} alt={cat.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent flex items-end p-4">
                   <h3 className="text-white font-black text-sm">{cat.title}</h3>
@@ -292,87 +330,145 @@ export const ShopPage: React.FC<ShopPageProps> = ({ onProductClick }) => {
           </div>
         </section>
 
-        {/* Shop New Arrivals */}
-        <section className="px-6 pb-10">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-[#111] tracking-tight">Shop New Arrivals</h2>
-            <button className="flex items-center gap-1 font-southern text-2xl text-gray-500 hover:text-[#f97316] transition-colors">
-              See All →
-            </button>
-          </div>
+        {/* ─── Flat filtered grid (category selected OR See All triggered) ─── */}
+        {showFlatGrid ? (
+          <section className="px-6 pb-16">
+            {/* Back bar */}
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => { setActiveCategory('All'); setViewMode('browse'); }}
+                className="flex items-center gap-1.5 text-sm font-bold text-gray-400 hover:text-[#f97316] transition-colors"
+              >
+                <ChevronLeft size={16} /> All Products
+              </button>
+              <span className="text-gray-300">/</span>
+              <span className="text-sm font-black text-gray-800">{flatGridTitle}</span>
+            </div>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 text-[#f97316] animate-spin" />
-                <p className="text-sm font-bold text-gray-400">Loading products...</p>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="w-8 h-8 text-[#f97316] animate-spin" />
+                  <p className="text-sm font-bold text-gray-400">Loading products...</p>
+                </div>
               </div>
-            </div>
-          ) : error ? (
-            <div className="text-center py-16">
-              <p className="text-sm font-bold text-red-400 mb-3">{error}</p>
-              <button onClick={() => window.location.reload()} className="text-sm font-bold text-[#f97316] hover:underline">Retry</button>
-            </div>
-          ) : newArrivals.length === 0 ? (
-            <p className="text-center py-12 text-sm font-medium text-gray-400">No products found.</p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-              {newArrivals.map((p) => (
-                <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
-              ))}
-            </div>
-          )}
-
-          {/* Pagination Dots */}
-          <div className="flex justify-center mt-8 gap-2">
-            {[0,1,2,3,4,5,6].map(i => (
-              <button 
-                key={i} 
-                onClick={() => setActiveDot(i)}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${activeDot === i ? 'bg-[#f97316] w-6' : 'bg-gray-300 hover:bg-gray-400'}`}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* Deals Of The Week */}
-        <section className="mx-6 mb-10 bg-gradient-to-r from-[#f97316] to-[#ea580c] rounded-2xl p-6 sm:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-black text-white tracking-tight">Deals Of The Week!</h2>
-              <CountdownTimer />
-            </div>
-            <button className="font-southern text-2xl text-white/80 hover:text-white transition-colors hidden sm:block">
-              See All →
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-            {dealsProducts.length > 0 ? dealsProducts.map((p) => (
-              <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
-            )) : (
-              <p className="col-span-full text-center py-8 text-sm font-medium text-white/70">No deals available right now.</p>
+            ) : error ? (
+              <div className="text-center py-16">
+                <p className="text-sm font-bold text-red-400 mb-3">{error}</p>
+                <button onClick={() => window.location.reload()} className="text-sm font-bold text-[#f97316] hover:underline">Retry</button>
+              </div>
+            ) : flatGridProducts.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-sm font-bold text-gray-400 mb-2">No products found in "{flatGridTitle}".</p>
+                <button onClick={() => { setActiveCategory('All'); setViewMode('browse'); }} className="text-sm font-bold text-[#f97316] hover:underline">Browse all products</button>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs font-bold text-gray-400 mb-5">{flatGridProducts.length} product{flatGridProducts.length !== 1 ? 's' : ''}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+                  {flatGridProducts.map((p) => (
+                    <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
+                  ))}
+                </div>
+              </>
             )}
-          </div>
-        </section>
+          </section>
+        ) : (
+          <>
+            {/* ─── Sectioned browse layout (All + Browse mode) ─── */}
 
-        {/* Trending Items */}
-        <section className="px-6 pb-16">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-black text-[#111] tracking-tight">Trending Items</h2>
-            <button className="font-southern text-2xl text-gray-500 hover:text-[#f97316] transition-colors">
-              See All →
-            </button>
-          </div>
+            {/* Shop New Arrivals */}
+            <section className="px-6 pb-10">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-black text-[#111] tracking-tight">Shop New Arrivals</h2>
+                <button
+                  onClick={() => setViewMode('arrivals')}
+                  className="flex items-center gap-1 font-southern text-2xl text-gray-500 hover:text-[#f97316] transition-colors"
+                >
+                  See All →
+                </button>
+              </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-            {trendingItems.length > 0 ? trendingItems.map((p) => (
-              <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
-            )) : (
-              <p className="col-span-full text-center py-8 text-sm font-medium text-gray-400">No trending items yet.</p>
-            )}
-          </div>
-        </section>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 text-[#f97316] animate-spin" />
+                    <p className="text-sm font-bold text-gray-400">Loading products...</p>
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="text-center py-16">
+                  <p className="text-sm font-bold text-red-400 mb-3">{error}</p>
+                  <button onClick={() => window.location.reload()} className="text-sm font-bold text-[#f97316] hover:underline">Retry</button>
+                </div>
+              ) : newArrivals.length === 0 ? (
+                <p className="text-center py-12 text-sm font-medium text-gray-400">No products found.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+                  {newArrivals.map((p) => (
+                    <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination Dots */}
+              <div className="flex justify-center mt-8 gap-2">
+                {[0,1,2,3,4,5,6].map(i => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveDot(i)}
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${activeDot === i ? 'bg-[#f97316] w-6' : 'bg-gray-300 hover:bg-gray-400'}`}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {/* Deals Of The Week */}
+            <section className="mx-6 mb-10 bg-gradient-to-r from-[#f97316] to-[#ea580c] rounded-2xl p-6 sm:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-2xl font-black text-black tracking-tight">Deals Of The Week!</h2>
+                  <CountdownTimer />
+                </div>
+                <button
+                  onClick={() => setViewMode('deals')}
+                  className="font-southern text-2xl text-white/80 hover:text-white transition-colors hidden sm:block"
+                >
+                  See All →
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+                {dealsProducts.length > 0 ? dealsProducts.map((p) => (
+                  <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
+                )) : (
+                  <p className="col-span-full text-center py-8 text-sm font-medium text-white/70">No deals available right now.</p>
+                )}
+              </div>
+            </section>
+
+            {/* Trending Items */}
+            <section className="px-6 pb-16">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-black text-[#111] tracking-tight">Trending Items</h2>
+                <button
+                  onClick={() => setViewMode('trending')}
+                  className="font-southern text-2xl text-gray-500 hover:text-[#f97316] transition-colors"
+                >
+                  See All →
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+                {trendingItems.length > 0 ? trendingItems.map((p) => (
+                  <ProductCard key={p.id} product={p} onClick={() => onProductClick(p.id)} />
+                )) : (
+                  <p className="col-span-full text-center py-8 text-sm font-medium text-gray-400">No trending items yet.</p>
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

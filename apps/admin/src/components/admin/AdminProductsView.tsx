@@ -1,8 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Calendar, Plus, MoreVertical, FileText, Loader2, AlertCircle, X, Trash2, Pencil } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, FileText, Loader2, AlertCircle, X, Trash2, Pencil, Camera, Check } from 'lucide-react';
 import { getAllProducts, createProduct, updateProduct, deleteProduct, parseApiResponseError } from '@mlc/api-client';
 import { useToast } from '@mlc/ui-components';
+import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
 import type { Product, CreateProductPayload } from '@mlc/shared-types';
+
+// ────────────────────────────────────────────────────────────
+// Image slot type (used in the Add/Edit modal)
+// ────────────────────────────────────────────────────────────
+interface ImageSlot {
+  preview: string | null;
+  uploadedUrl: string | null;
+  isUploading: boolean;
+  error: string | null;
+}
+const MAX_IMAGES = 4;
+const emptySlots = (): ImageSlot[] =>
+  Array.from({ length: MAX_IMAGES }, () => ({ preview: null, uploadedUrl: null, isUploading: false, error: null }));
 
 const EMPTY_FORM: CreateProductPayload = {
   name: '',
@@ -11,6 +25,7 @@ const EMPTY_FORM: CreateProductPayload = {
   price: 0,
   description: '',
   quantity: 0,
+  images: [],
 };
 
 export const AdminProductsView = () => {
@@ -33,6 +48,17 @@ export const AdminProductsView = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  // Separate text inputs for price/quantity (avoids number spinners, gives full control)
+  const [priceInput, setPriceInput] = useState('');
+  const [quantityInput, setQuantityInput] = useState('');
+
+  // Tag chip state
+  const [tagInput, setTagInput] = useState('');
+
+  // Image slot state
+  const [imageSlots, setImageSlots] = useState<ImageSlot[]>(emptySlots());
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -54,6 +80,10 @@ export const AdminProductsView = () => {
   const openAddModal = () => {
     setEditingProduct(null);
     setForm(EMPTY_FORM);
+    setPriceInput('');
+    setQuantityInput('');
+    setTagInput('');
+    setImageSlots(emptySlots());
     setShowModal(true);
   };
 
@@ -66,23 +96,138 @@ export const AdminProductsView = () => {
       price: product.price,
       description: product.description,
       quantity: product.quantity,
+      images: product.image ?? [],
     });
+    setPriceInput(product.price > 0 ? String(product.price) : '');
+    setQuantityInput(product.quantity > 0 ? String(product.quantity) : '');
+    setTagInput('');
+    // Populate image slots from existing product images
+    const slots = emptySlots();
+    (product.image ?? []).slice(0, MAX_IMAGES).forEach((url, i) => {
+      slots[i] = { preview: url, uploadedUrl: url, isUploading: false, error: null };
+    });
+    setImageSlots(slots);
     setShowModal(true);
   };
 
-  const handleSave = async () => {
-    if (!form.name || form.price <= 0) {
-      toast.error('Validation error', 'Name and a valid price are required.');
+  // ── Tag helpers ───────────────────────────────────────────
+  const handleTagInput = (value: string) => {
+    // If the user typed a comma or space, commit everything before it as tags
+    const parts = value.split(/[,\s]+/);
+    if (parts.length > 1) {
+      const toCommit = parts.slice(0, -1).map(t => t.trim()).filter(Boolean);
+      const remaining = parts[parts.length - 1];
+      if (toCommit.length) {
+        setForm(f => ({ ...f, tag: [...new Set([...f.tag, ...toCommit])] }));
+      }
+      setTagInput(remaining);
+    } else {
+      setTagInput(value);
+    }
+  };
+
+  const commitTagInput = () => {
+    const trimmed = tagInput.trim();
+    if (trimmed) {
+      setForm(f => ({ ...f, tag: [...new Set([...f.tag, trimmed])] }));
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (idx: number) =>
+    setForm(f => ({ ...f, tag: f.tag.filter((_, i) => i !== idx) }));
+
+  // ── Image helpers ─────────────────────────────────────────
+  const handleImageSelect = async (index: number, file: File) => {
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setImageSlots(prev => {
+        const next = [...prev];
+        next[index] = { ...next[index], error: 'File exceeds 5 MB' };
+        return next;
+      });
       return;
     }
+    const preview = URL.createObjectURL(file);
+    setImageSlots(prev => {
+      const next = [...prev];
+      next[index] = { preview, uploadedUrl: null, isUploading: true, error: null };
+      return next;
+    });
+    try {
+      const url = await uploadToCloudinary(file);
+      setImageSlots(prev => {
+        const next = [...prev];
+        next[index] = { preview, uploadedUrl: url, isUploading: false, error: null };
+        return next;
+      });
+    } catch {
+      setImageSlots(prev => {
+        const next = [...prev];
+        next[index] = { preview: null, uploadedUrl: null, isUploading: false, error: 'Upload failed. Retry.' };
+        return next;
+      });
+    }
+  };
+
+  const removeImage = (index: number) =>
+    setImageSlots(prev => {
+      const next = [...prev];
+      next[index] = { preview: null, uploadedUrl: null, isUploading: false, error: null };
+      if (fileInputRefs.current[index]) fileInputRefs.current[index]!.value = '';
+      return next;
+    });
+
+  // ── Save ──────────────────────────────────────────────────
+  const handleSave = async () => {
+    // Commit any partial tag still in the input box
+    const allTags = [...form.tag];
+    const partialTag = tagInput.trim();
+    if (partialTag) allTags.push(partialTag);
+
+    // Validate price
+    const parsedPrice = parseFloat(priceInput.replace(/,/g, ''));
+    if (!form.name.trim()) {
+      toast.error('Validation error', 'Product name is required.');
+      return;
+    }
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      toast.error('Validation error', 'Enter a valid price greater than 0.');
+      return;
+    }
+    const parsedQty = parseInt(quantityInput.replace(/,/g, ''), 10);
+    if (isNaN(parsedQty) || parsedQty < 0) {
+      toast.error('Validation error', 'Enter a valid quantity (0 or more).');
+      return;
+    }
+    if (imageSlots.some(s => s.isUploading)) {
+      toast.error('Please wait', 'Images are still uploading.');
+      return;
+    }
+
+    const images = imageSlots.filter(s => s.uploadedUrl).map(s => s.uploadedUrl!);
+    // Normalise category casing: first letter uppercase, rest lowercase
+    const normalizedCategory = form.category.trim()
+      ? form.category.trim().charAt(0).toUpperCase() + form.category.trim().slice(1).toLowerCase()
+      : '';
+
+    const payload: CreateProductPayload = {
+      ...form,
+      category: normalizedCategory,
+      tag: allTags,
+      price: parsedPrice,
+      quantity: parsedQty,
+      images,
+    };
+
     setIsSaving(true);
     try {
       if (editingProduct) {
-        const updated = await updateProduct(editingProduct.id, form, 'admin');
+        const updated = await updateProduct(editingProduct.id, payload, 'admin');
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? updated : p));
         toast.success('Product updated', `"${updated.name}" has been saved.`);
       } else {
-        const created = await createProduct(form, 'admin');
+        const created = await createProduct(payload, 'admin');
         setProducts(prev => [created, ...prev]);
         toast.success('Product added', `"${created.name}" is now in the catalogue.`);
       }
@@ -302,18 +447,22 @@ export const AdminProductsView = () => {
 
       {/* Add / Edit Product Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 relative">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"
-            >
-              <X size={20} />
-            </button>
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              {editingProduct ? 'Edit Product' : 'Add New Product'}
-            </h2>
-            <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative flex flex-col max-h-[90vh]">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingProduct ? 'Edit Product' : 'Add New Product'}
+              </h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="overflow-y-auto px-8 pb-6 space-y-5 flex-1">
+
+              {/* Name */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Name *</label>
                 <input
@@ -323,28 +472,40 @@ export const AdminProductsView = () => {
                   placeholder="Product name"
                 />
               </div>
+
+              {/* Price + Quantity — text inputs, numeric keyboard */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Price (₦) *</label>
                   <input
-                    type="number"
-                    min={0}
-                    value={form.price}
-                    onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))}
+                    type="text"
+                    inputMode="numeric"
+                    value={priceInput}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (/^[\d,]*\.?\d*$/.test(v)) setPriceInput(v);
+                    }}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Quantity</label>
                   <input
-                    type="number"
-                    min={0}
-                    value={form.quantity}
-                    onChange={e => setForm(f => ({ ...f, quantity: Number(e.target.value) }))}
+                    type="text"
+                    inputMode="numeric"
+                    value={quantityInput}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (/^\d*$/.test(v)) setQuantityInput(v);
+                    }}
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
                   />
                 </div>
               </div>
+
+              {/* Category */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Category</label>
                 <input
@@ -354,15 +515,36 @@ export const AdminProductsView = () => {
                   placeholder="e.g. Electronics"
                 />
               </div>
+
+              {/* Tags — chip UI */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tags (comma-separated)</label>
-                <input
-                  value={form.tag.join(', ')}
-                  onChange={e => setForm(f => ({ ...f, tag: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. gaming, accessories"
-                />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tags</label>
+                <div className="border border-gray-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 flex flex-wrap gap-1.5 min-h-[42px]">
+                  {form.tag.map((tag, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                      {tag}
+                      <button type="button" onClick={() => removeTag(i)} className="text-blue-400 hover:text-blue-700 leading-none">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={e => handleTagInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commitTagInput(); }
+                      if (e.key === 'Backspace' && !tagInput && form.tag.length) removeTag(form.tag.length - 1);
+                    }}
+                    onBlur={commitTagInput}
+                    placeholder={form.tag.length === 0 ? 'Type a tag and press space or comma…' : ''}
+                    className="flex-1 min-w-[120px] text-sm outline-none bg-transparent"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">Separate tags by space or comma. Press Backspace to remove the last tag.</p>
               </div>
+
+              {/* Description */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Description</label>
                 <textarea
@@ -373,8 +555,62 @@ export const AdminProductsView = () => {
                   placeholder="Product description"
                 />
               </div>
+
+              {/* Image uploads */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Product Images (max {MAX_IMAGES})</label>
+                <p className="text-[10px] text-gray-400 mb-3">First image is the primary / cover photo. Max 5 MB each.</p>
+                <div className="grid grid-cols-4 gap-3">
+                  {imageSlots.map((slot, idx) => (
+                    <div key={idx} className="relative">
+                      {slot.preview ? (
+                        <div className="aspect-square rounded-xl overflow-hidden relative group border border-gray-200">
+                          <img src={slot.preview} alt={`Product image ${idx + 1}`} className="w-full h-full object-cover" />
+                          {/* Uploading overlay */}
+                          {slot.isUploading && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
+                              <Loader2 className="w-5 h-5 text-white animate-spin" />
+                            </div>
+                          )}
+                          {/* Success tick */}
+                          {slot.uploadedUrl && !slot.isUploading && (
+                            <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                              <Check size={10} className="text-white stroke-[3px]" />
+                            </div>
+                          )}
+                          {/* Remove */}
+                          <button
+                            type="button"
+                            onClick={() => removeImage(idx)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="aspect-square rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all group">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            ref={el => { fileInputRefs.current[idx] = el; }}
+                            onChange={e => { const f = e.target.files?.[0]; if (f) handleImageSelect(idx, f); e.target.value = ''; }}
+                          />
+                          <Camera size={16} className="text-gray-300 group-hover:text-blue-500" />
+                          <span className="text-[9px] font-bold uppercase text-gray-300 group-hover:text-blue-500">
+                            {idx === 0 ? 'Cover' : `Photo ${idx + 1}`}
+                          </span>
+                        </label>
+                      )}
+                      {slot.error && <p className="text-red-500 text-[9px] font-bold mt-0.5 text-center">{slot.error}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex gap-3 mt-6">
+
+            {/* Modal footer */}
+            <div className="flex gap-3 px-8 py-5 border-t border-gray-100 flex-shrink-0">
               <button
                 onClick={() => setShowModal(false)}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -383,10 +619,12 @@ export const AdminProductsView = () => {
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving}
+                disabled={isSaving || imageSlots.some(s => s.isUploading)}
                 className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                {isSaving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : (editingProduct ? 'Save Changes' : 'Add Product')}
+                {isSaving
+                  ? <><Loader2 size={16} className="animate-spin" /> Saving…</>
+                  : editingProduct ? 'Save Changes' : 'Add Product'}
               </button>
             </div>
           </div>

@@ -19,6 +19,7 @@ import { AddBusinessPage } from './components/AddBusinessPage';
 import { AddEventPage } from './components/AddEventPage';
 import { ShopPage } from './components/ShopPage';
 import { ProductDetail } from './components/ProductDetail';
+import { FavoritesPage } from './components/FavoritesPage';
 import { ShoppingCartPage } from './components/ShoppingCartPage';
 import { ShopCheckout } from './components/ShopCheckout';
 import { EventDetailPage } from './components/EventDetailPage';
@@ -73,12 +74,19 @@ const ProductDetailWrapper: React.FC<{ onProductClick: (id: number) => void }> =
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   
-  if (!productId || isNaN(Number(productId))) {
+  const parsedId = Number(productId);
+  if (!productId || isNaN(parsedId) || parsedId <= 0) {
     return <Navigate to="/shop" replace />;
   }
   
   return (
-    <ProductDetail productId={Number(productId)} onBack={() => navigate('/shop')} onProductClick={onProductClick} />
+    <ProductDetail 
+      productId={parsedId} 
+      onBack={() => navigate('/shop')} 
+      onProductClick={onProductClick}
+      onViewCart={() => navigate('/cart')}
+      onViewFavorites={() => navigate('/favorites')}
+    />
   );
 };
 
@@ -104,6 +112,11 @@ const App: React.FC = () => {
 
   const handleProductClick = (id: number) => {
     navigate(`/shop/${id}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleFavoritesClick = () => {
+    navigate('/favorites');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -133,6 +146,7 @@ const App: React.FC = () => {
         onAddBusinessClick={() => navigate('/add-business')}
         onShopClick={() => navigate('/shop')}
         onCartClick={() => navigate('/cart')}
+        onFavoritesClick={handleFavoritesClick}
         onLoginClick={() => openAuthModal('login')}
         onSignupClick={() => openAuthModal('signup')}
         isLoggedIn={isLoggedIn}
@@ -167,6 +181,7 @@ const App: React.FC = () => {
           <Route path="/add-event" element={<AddEventPage onBackToDashboard={() => navigate('/dashboard')} />} />
           <Route path="/shop" element={<ShopPage onProductClick={handleProductClick} />} />
           <Route path="/shop/:productId" element={<ProductDetailWrapper onProductClick={handleProductClick} />} />
+          <Route path="/favorites" element={<FavoritesPage onBack={() => navigate('/shop')} onProductClick={handleProductClick} />} />
           <Route path="/cart" element={<ShoppingCartPage onBackToShop={() => navigate('/shop')} onCheckout={() => navigate('/shop/checkout')} />} />
           <Route path="/shop/checkout" element={<ShopCheckout onBackToCart={() => navigate('/cart')} onBackToShop={() => navigate('/shop')} />} />
 

@@ -473,6 +473,7 @@ export interface CreateProductPayload {
   price: number;
   description: string;
   quantity: number;
+  images: string[];
 }
 
 // ============================

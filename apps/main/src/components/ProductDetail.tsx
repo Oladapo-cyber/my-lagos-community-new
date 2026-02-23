@@ -17,11 +17,14 @@ import {
 import type { Product } from '@mlc/shared-types';
 import { getProduct, getAllProducts } from '../utils/apiClient';
 import { useCart } from '../context/CartContext';
+import { useFavorites } from '../context/FavoritesContext';
 
 interface ProductDetailProps {
   productId?: number;
   onBack: () => void;
   onProductClick: (id: number) => void;
+  onViewCart?: () => void;
+  onViewFavorites?: () => void;
 }
 
 /** Format a number as ₦X,XXX */
@@ -29,9 +32,24 @@ function formatPrice(price: number): string {
   return `₦${price.toLocaleString()}`;
 }
 
+/** Favorite Button Component */
+const FavoriteButton: React.FC<{ productId: number }> = ({ productId }) => {
+  const { isFavorited, toggleFavorite } = useFavorites();
+  const isLiked = isFavorited(productId);
+
+  return (
+    <button
+      onClick={() => toggleFavorite(productId)}
+      className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center hover:bg-red-50 transition-colors"
+    >
+      <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400 hover:text-red-500'}`} />
+    </button>
+  );
+};
+
 const PLACEHOLDER_IMG = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop';
 
-export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack, onProductClick }) => {
+export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack, onProductClick, onViewCart, onViewFavorites }) => {
   const [activeTab, setActiveTab] = useState<'description' | 'additional' | 'reviews'>('description');
   const [activeThumb, setActiveThumb] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -48,7 +66,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack,
 
   // Fetch product on mount / id change
   useEffect(() => {
-    if (!productId) return;
+    if (!productId || productId <= 0) return;
     let cancelled = false;
 
     (async () => {
@@ -163,13 +181,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack,
                   <>
                     <button
                       onClick={() => setActiveThumb(prev => (prev - 1 + images.length) % images.length)}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 transition-all z-10"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 transition-all z-10 opacity-0 group-hover:opacity-100"
                     >
                       <ChevronLeft className="w-6 h-6" />
                     </button>
                     <button
                       onClick={() => setActiveThumb(prev => (prev + 1) % images.length)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 transition-all z-10"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-gray-800 transition-all z-10 opacity-0 group-hover:opacity-100"
                     >
                       <ChevronRight className="w-6 h-6" />
                     </button>
@@ -196,7 +214,10 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack,
           {/* Right: Product Info Card */}
           <div className="w-full lg:w-[450px]">
              <div className="bg-white rounded-2xl p-10 border border-gray-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] h-full">
-                <h2 className="text-2xl font-black text-[#111] mb-4">{product.name}</h2>
+                <div className="flex items-start justify-between mb-4">
+                  <h2 className="text-2xl font-black text-[#111] flex-1">{product.name}</h2>
+                  <FavoriteButton productId={product.id} />
+                </div>
                 <div className="flex items-center gap-4 mb-6">
                    <span className="text-lg font-black text-gray-800">{formatPrice(product.price)}</span>
                 </div>
@@ -273,6 +294,26 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ productId, onBack,
                    {addedMessage && (
                      <p className="text-center text-sm font-bold text-green-600 mt-2">{addedMessage}</p>
                    )}
+
+                   {/* View Cart & Favorites Buttons */}
+                   <div className="flex gap-3 mt-6">
+                     {onViewCart && (
+                       <button
+                         onClick={onViewCart}
+                         className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-lg font-bold text-xs uppercase tracking-widest transition-all"
+                       >
+                         View Cart
+                       </button>
+                     )}
+                     {onViewFavorites && (
+                       <button
+                         onClick={onViewFavorites}
+                         className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-lg font-bold text-xs uppercase tracking-widest transition-all"
+                       >
+                         View Favorites
+                       </button>
+                     )}
+                   </div>
                 </div>
              </div>
           </div>
