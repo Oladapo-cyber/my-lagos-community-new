@@ -35,6 +35,7 @@ export { getEvent, getAllEvents, createEvent, approveEvent } from './services/ev
 export {
   getAllProducts,
   getProduct,
+  getMerchantProducts,
   createProduct,
   updateProduct,
   deleteProduct,

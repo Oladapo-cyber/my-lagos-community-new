@@ -464,6 +464,7 @@ export interface Product {
   description: string;
   quantity: number;
   image?: string[];
+  no_of_sales?: number;
 }
 
 export interface CreateProductPayload {

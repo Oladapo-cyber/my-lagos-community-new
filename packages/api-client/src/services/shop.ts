@@ -21,6 +21,10 @@ export async function getProduct(productId: number, app: AppType = 'main'): Prom
   return callXanoEndpoint(`product/${productId}`, 'GET', undefined, undefined, app) as Promise<Product>;
 }
 
+export async function getMerchantProducts(userId: string, app: AppType = 'main'): Promise<Product[]> {
+  return callXanoEndpoint('product/single', 'GET', undefined, { user_id: userId }, app) as Promise<Product[]>;
+}
+
 export async function createProduct(payload: CreateProductPayload, app: AppType = 'main'): Promise<Product> {
   return callXanoEndpoint('product', 'POST', payload, undefined, app) as Promise<Product>;
 }

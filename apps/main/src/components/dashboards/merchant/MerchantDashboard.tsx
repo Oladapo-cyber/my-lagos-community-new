@@ -7,7 +7,6 @@ import {
   Star, 
   Wallet, 
   UserCircle, 
-  ListTodo, 
   Calendar,
   Store,
   AlertTriangle
@@ -20,7 +19,6 @@ import { MerchantAnalyticsView } from './MerchantAnalyticsView';
 import { ReviewsView } from './ReviewsView';
 import { PayoutsView } from './PayoutsView';
 import { OrdersView } from '../../dashboard/OrdersView';
-import { ListingsView } from '../../dashboard/ListingsView';
 import { EventsView } from '../../dashboard/EventsView';
 import { ProfileView } from '../../dashboard/ProfileView';
 import { useAuth } from '../../../context/AuthContext';
@@ -33,7 +31,6 @@ interface MerchantDashboardProps {
 const MENU_ITEMS: MenuItem[] = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'products', icon: Package, label: 'Products' },
-  { id: 'listings', icon: ListTodo, label: 'Manage Listings' },
   { id: 'events', icon: Calendar, label: 'Manage Events' },
   { id: 'orders', icon: ShoppingCart, label: 'Orders' },
   { id: 'analytics', icon: BarChart3, label: 'Analytics' },
@@ -97,7 +94,6 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onReturnHo
       <Routes>
         <Route index element={<MerchantStatsOverview />} />
         <Route path="products" element={<ProductsView />} />
-        <Route path="listings" element={<ListingsView />} />
         <Route path="events" element={<EventsView />} />
         <Route path="orders" element={<OrdersView />} />
         <Route path="analytics" element={<MerchantAnalyticsView />} />
